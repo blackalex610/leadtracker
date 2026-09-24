@@ -88,6 +88,22 @@ class Settings(BaseSettings):
             return None
         return value
 
+    @field_validator("database_url")
+    @classmethod
+    def _asyncpg_url(cls, value: str) -> str:
+        """Accept the plain URLs managed providers hand out (postgres://, ?sslmode=...)."""
+        for prefix in ("postgres://", "postgresql://"):
+            if value.startswith(prefix):
+                value = "postgresql+asyncpg://" + value[len(prefix) :]
+        return value.replace("sslmode=", "ssl=")
+
+    @field_validator("secret_key", mode="before")
+    @classmethod
+    def _empty_secret_key(cls, value: object) -> object:
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return INSECURE_DEFAULT_SECRET
+        return value
+
     @field_validator("default_country")
     @classmethod
     def _upper_country(cls, value: str) -> str:
@@ -95,8 +111,11 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _check_security(self) -> Settings:
-        if self.auth_mode == "token" and self.secret_key.get_secret_value() == INSECURE_DEFAULT_SECRET:
-            raise ValueError("SECRET_KEY must be set to a strong random value when AUTH_MODE=token")
+        secret = self.secret_key.get_secret_value()
+        if self.auth_mode == "token" and (secret == INSECURE_DEFAULT_SECRET or len(secret) < 32):
+            raise ValueError(
+                "SECRET_KEY must be a random value of at least 32 characters when AUTH_MODE=token"
+            )
         if self.session_cookie_samesite == "none" and not self.session_cookie_secure:
             raise ValueError("SESSION_COOKIE_SECURE must be true when SESSION_COOKIE_SAMESITE=none")
         return self

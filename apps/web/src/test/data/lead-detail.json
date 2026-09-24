@@ -1,0 +1,692 @@
+{
+ "id": 101,
+ "name": "Iron Gym Lozenets",
+ "category": "Gym",
+ "city": "Sofia",
+ "neighborhood": null,
+ "address": "127 Demo Street, Burgas",
+ "international_phone": "+359 88 812 3456",
+ "national_phone": "088 812 3456",
+ "normalized_phone": "+359888123456",
+ "phone_invalid": false,
+ "rating": 4.0,
+ "review_count": 390,
+ "website_url": "https://irongym.bg/",
+ "website_kind": "own",
+ "website_status": "ok",
+ "website_health_score": 18,
+ "outdated_score": 100,
+ "opportunity_score": 100,
+ "priority": "HOT",
+ "opportunity_types": [
+  "WEBSITE_REDESIGN",
+  "NO_CONTACT_CTA",
+  "MOBILE_PROBLEM",
+  "WEAK_CONVERSION",
+  "OUTDATED_WEBSITE",
+  "NO_BOOKING",
+  "GOOGLE_PROFILE"
+ ],
+ "top_reason": "Website Health 18/100 (below 40)",
+ "status": "NEW",
+ "suppressed": false,
+ "is_demo": false,
+ "data_quality": "EXCELLENT",
+ "google_maps_url": "https://maps.google.com/?cid=101",
+ "business_status": "OPERATIONAL",
+ "open_in_calling_window": true,
+ "assigned_to_id": null,
+ "last_contacted_at": null,
+ "next_callback_at": null,
+ "call_count": 0,
+ "created_at": "2026-09-24T13:50:44.662323Z",
+ "primary_type": "gym",
+ "types": [
+  "gym",
+  "point_of_interest",
+  "establishment"
+ ],
+ "niche_key": "gyms",
+ "niche_label": "Gyms",
+ "subcategory": null,
+ "description": null,
+ "postal_code": null,
+ "country_code": "BG",
+ "latitude": null,
+ "longitude": null,
+ "opening_hours": {
+  "periods": [
+   {
+    "open": {
+     "day": 1,
+     "hour": 9,
+     "minute": 0
+    },
+    "close": {
+     "day": 1,
+     "hour": 21,
+     "minute": 0
+    }
+   },
+   {
+    "open": {
+     "day": 2,
+     "hour": 9,
+     "minute": 0
+    },
+    "close": {
+     "day": 2,
+     "hour": 21,
+     "minute": 0
+    }
+   },
+   {
+    "open": {
+     "day": 3,
+     "hour": 9,
+     "minute": 0
+    },
+    "close": {
+     "day": 3,
+     "hour": 21,
+     "minute": 0
+    }
+   },
+   {
+    "open": {
+     "day": 4,
+     "hour": 9,
+     "minute": 0
+    },
+    "close": {
+     "day": 4,
+     "hour": 21,
+     "minute": 0
+    }
+   },
+   {
+    "open": {
+     "day": 5,
+     "hour": 9,
+     "minute": 0
+    },
+    "close": {
+     "day": 5,
+     "hour": 21,
+     "minute": 0
+    }
+   },
+   {
+    "open": {
+     "day": 6,
+     "hour": 9,
+     "minute": 0
+    },
+    "close": {
+     "day": 6,
+     "hour": 21,
+     "minute": 0
+    }
+   }
+  ],
+  "weekday_descriptions": [
+   "Monday: 9:00 AM – 9:00 PM",
+   "Tuesday: 9:00 AM – 9:00 PM",
+   "Wednesday: 9:00 AM – 9:00 PM",
+   "Thursday: 9:00 AM – 9:00 PM",
+   "Friday: 9:00 AM – 9:00 PM",
+   "Saturday: 9:00 AM – 9:00 PM",
+   "Sunday: Closed"
+  ]
+ },
+ "utc_offset_minutes": 180,
+ "photo_count": 2,
+ "google_profile_score": 94,
+ "google_signals": [
+  {
+   "code": "few_photos",
+   "label": "Only 2 photo(s) on the listing",
+   "severity": "minor"
+  }
+ ],
+ "score_reasons": [
+  {
+   "rule": "low_health",
+   "points": 25,
+   "text": "Website Health 18/100 (below 40)",
+   "opportunity": "WEBSITE_REDESIGN",
+   "tier": "strong"
+  },
+  {
+   "rule": "no_booking",
+   "points": 15,
+   "text": "No online booking mechanism detected in a booking-oriented category",
+   "opportunity": "NO_BOOKING",
+   "tier": "very_strong"
+  },
+  {
+   "rule": "no_contact_cta",
+   "points": 10,
+   "text": "No clear contact call-to-action detected on the website",
+   "opportunity": "NO_CONTACT_CTA",
+   "tier": "strong"
+  },
+  {
+   "rule": "mobile_problem",
+   "points": 10,
+   "text": "Mobile issue: No mobile viewport configured (likely not mobile-friendly)",
+   "opportunity": "MOBILE_PROBLEM",
+   "tier": "strong"
+  },
+  {
+   "rule": "weak_conversion",
+   "points": 10,
+   "text": "6 conversion elements not found: online booking, services section, contact call-to-action, contact form, opening hours, address/location",
+   "opportunity": "WEAK_CONVERSION",
+   "tier": "strong"
+  },
+  {
+   "rule": "outdated_website",
+   "points": 10,
+   "text": "Outdated index 100/100 (severe problems)",
+   "opportunity": "OUTDATED_WEBSITE",
+   "tier": "moderate"
+  },
+  {
+   "rule": "incomplete_google",
+   "points": 5,
+   "text": "Google profile: Only 2 photo(s) on the listing",
+   "opportunity": "GOOGLE_PROFILE",
+   "tier": "moderate"
+  },
+  {
+   "rule": "discovery_category",
+   "points": 5,
+   "text": "Gyms: category relies on online discovery",
+   "opportunity": null,
+   "tier": "contextual"
+  },
+  {
+   "rule": "open_in_calling_window",
+   "points": 5,
+   "text": "Open during the calling window on most weekdays",
+   "opportunity": null,
+   "tier": "contextual"
+  },
+  {
+   "rule": "phone_available",
+   "points": 5,
+   "text": "Phone number available",
+   "opportunity": null,
+   "tier": "contextual"
+  }
+ ],
+ "priority_reason": "HOT: phone available · strong category · major issue: WEBSITE_REDESIGN · score 100 ≥ 50",
+ "strong_category": true,
+ "booking_oriented": true,
+ "provider": "demo",
+ "provider_place_id": "demo-4ae18358cef2",
+ "source_timestamp": "2026-09-24T13:50:44.657998Z",
+ "phone_raw": "+44 113 496 0466",
+ "phone_type": "fixed_line",
+ "phone_source": "demo",
+ "phone_verified": false,
+ "last_audited_at": "2026-09-24T13:50:45.016902Z",
+ "data_quality_checklist": {
+  "phone": true,
+  "website": true,
+  "address": true,
+  "rating": true,
+  "hours": true
+ },
+ "contacts": [
+  {
+   "id": 159,
+   "raw_phone": "+359 88 812 3456",
+   "normalized_phone": "+359888123456",
+   "national_format": "088 812 3456",
+   "international_format": "+359 88 812 3456",
+   "country_code": 44,
+   "phone_type": "fixed_line",
+   "phone_source": "google_places",
+   "phone_verified": false,
+   "verification_method": null,
+   "is_primary": true,
+   "invalid": false
+  }
+ ],
+ "audit": {
+  "id": 109,
+  "url": "https://irongym.bg/",
+  "final_url": "https://irongym.bg/",
+  "status": "success",
+  "error_code": null,
+  "error_message": null,
+  "http_status": 200,
+  "https": true,
+  "redirect_count": 0,
+  "redirect_chain": [],
+  "response_time_ms": 0,
+  "health_score": 18,
+  "outdated_score": 100,
+  "outdated_band": "Severe problems",
+  "category_scores": {
+   "trust": {
+    "max": 15,
+    "label": "Trust signals",
+    "score": 5,
+    "penalty": 10,
+    "signals": [
+     "no_privacy_policy",
+     "no_testimonials",
+     "no_about"
+    ]
+   },
+   "mobile": {
+    "max": 20,
+    "label": "Mobile quality",
+    "score": 0,
+    "penalty": 20,
+    "signals": [
+     "no_viewport",
+     "table_layout"
+    ]
+   },
+   "content": {
+    "max": 15,
+    "label": "Content quality",
+    "score": 0,
+    "penalty": 19,
+    "signals": [
+     "very_little_text",
+     "outdated_copyright",
+     "generic_template_language",
+     "prices_only_in_bgn"
+    ]
+   },
+   "technical": {
+    "max": 25,
+    "label": "Technical quality",
+    "score": 13,
+    "penalty": 12,
+    "signals": [
+     "missing_meta_description",
+     "missing_h1",
+     "broken_images",
+     "broken_links"
+    ]
+   },
+   "conversion": {
+    "max": 25,
+    "label": "Conversion quality",
+    "score": 0,
+    "penalty": 27,
+    "signals": [
+     "no_click_to_call",
+     "no_booking",
+     "no_contact_cta",
+     "no_contact_form",
+     "no_clear_service_description",
+     "no_location_information",
+     "no_hours",
+     "no_social_links"
+    ]
+   }
+  },
+  "signals": [
+   {
+    "code": "missing_meta_description",
+    "label": "Missing meta description",
+    "detail": null,
+    "penalty": 2,
+    "category": "technical",
+    "severity": "minor"
+   },
+   {
+    "code": "missing_h1",
+    "label": "Missing main heading (H1)",
+    "detail": null,
+    "penalty": 2,
+    "category": "technical",
+    "severity": "minor"
+   },
+   {
+    "code": "broken_images",
+    "label": "Broken images",
+    "detail": "1 of 2 checked images failed to load",
+    "penalty": 4,
+    "category": "technical",
+    "severity": "minor"
+   },
+   {
+    "code": "broken_links",
+    "label": "Broken internal links",
+    "detail": "1 of 1 checked internal links are broken",
+    "penalty": 4,
+    "category": "technical",
+    "severity": "minor"
+   },
+   {
+    "code": "no_viewport",
+    "label": "No mobile viewport configured (likely not mobile-friendly)",
+    "detail": "No <meta name=\"viewport\"> tag",
+    "penalty": 14,
+    "category": "mobile",
+    "severity": "critical"
+   },
+   {
+    "code": "table_layout",
+    "label": "Fixed-width table layout",
+    "detail": "2 tables, 1 nested, 1 with fixed width",
+    "penalty": 6,
+    "category": "mobile",
+    "severity": "major"
+   },
+   {
+    "code": "no_click_to_call",
+    "label": "Phone shown but not tappable (no tel: link)",
+    "detail": null,
+    "penalty": 2,
+    "category": "conversion",
+    "severity": "minor"
+   },
+   {
+    "code": "no_booking",
+    "label": "No online booking mechanism detected",
+    "detail": null,
+    "penalty": 6,
+    "category": "conversion",
+    "severity": "major"
+   },
+   {
+    "code": "no_contact_cta",
+    "label": "No clear contact call-to-action detected",
+    "detail": null,
+    "penalty": 6,
+    "category": "conversion",
+    "severity": "major"
+   },
+   {
+    "code": "no_contact_form",
+    "label": "No contact/inquiry form detected",
+    "detail": null,
+    "penalty": 3,
+    "category": "conversion",
+    "severity": "minor"
+   },
+   {
+    "code": "no_clear_service_description",
+    "label": "No clear services section detected",
+    "detail": null,
+    "penalty": 4,
+    "category": "conversion",
+    "severity": "major"
+   },
+   {
+    "code": "no_location_information",
+    "label": "No address/location information detected",
+    "detail": null,
+    "penalty": 3,
+    "category": "conversion",
+    "severity": "minor"
+   },
+   {
+    "code": "no_hours",
+    "label": "No opening hours detected",
+    "detail": null,
+    "penalty": 2,
+    "category": "conversion",
+    "severity": "minor"
+   },
+   {
+    "code": "no_social_links",
+    "label": "No social media links detected",
+    "detail": null,
+    "penalty": 1,
+    "category": "conversion",
+    "severity": "info"
+   },
+   {
+    "code": "very_little_text",
+    "label": "Very little text content",
+    "detail": "About 39 words on the homepage",
+    "penalty": 5,
+    "category": "content",
+    "severity": "major"
+   },
+   {
+    "code": "outdated_copyright",
+    "label": "Outdated copyright year",
+    "detail": "Copyright 2014 (12 years old)",
+    "penalty": 6,
+    "category": "content",
+    "severity": "major"
+   },
+   {
+    "code": "generic_template_language",
+    "label": "Generic template wording",
+    "detail": "Found: “добре дошли в нашия сайт”",
+    "penalty": 3,
+    "category": "content",
+    "severity": "minor"
+   },
+   {
+    "code": "prices_only_in_bgn",
+    "label": "Prices appear only in leva (BGN)",
+    "detail": "e.g. “30 лв.”; Bulgaria adopted the euro on 1 January 2026",
+    "penalty": 5,
+    "category": "content",
+    "severity": "major"
+   },
+   {
+    "code": "no_privacy_policy",
+    "label": "No privacy/cookie policy link detected",
+    "detail": null,
+    "penalty": 4,
+    "category": "trust",
+    "severity": "minor"
+   },
+   {
+    "code": "no_testimonials",
+    "label": "No testimonials or reviews section detected",
+    "detail": null,
+    "penalty": 3,
+    "category": "trust",
+    "severity": "minor"
+   },
+   {
+    "code": "no_about",
+    "label": "No 'About us' section detected",
+    "detail": null,
+    "penalty": 3,
+    "category": "trust",
+    "severity": "minor"
+   }
+  ],
+  "outdated_signals": [
+   {
+    "code": "old_copyright",
+    "label": "Copyright year 5+ years old",
+    "detail": "© 2014",
+    "points": 25
+   },
+   {
+    "code": "obsolete_html",
+    "label": "Obsolete HTML tags",
+    "detail": "<center>×1, <font>×2, <marquee>×1",
+    "points": 20
+   },
+   {
+    "code": "old_doctype",
+    "label": "Legacy HTML 4 / XHTML 1.0 doctype",
+    "detail": null,
+    "points": 10
+   },
+   {
+    "code": "non_responsive",
+    "label": "Not built for mobile screens",
+    "detail": null,
+    "points": 20
+   },
+   {
+    "code": "table_layout",
+    "label": "Table-based layout",
+    "detail": null,
+    "points": 10
+   },
+   {
+    "code": "broken_assets",
+    "label": "Broken images",
+    "detail": null,
+    "points": 5
+   },
+   {
+    "code": "dead_links",
+    "label": "Dead internal links",
+    "detail": null,
+    "points": 5
+   },
+   {
+    "code": "no_modern_cta",
+    "label": "No modern call-to-action (call/book/contact)",
+    "detail": null,
+    "points": 10
+   },
+   {
+    "code": "old_jquery",
+    "label": "Legacy jQuery 1.x",
+    "detail": "jQuery 1.4.2",
+    "points": 5
+   },
+   {
+    "code": "pre_euro_prices",
+    "label": "Prices not updated for the euro",
+    "detail": null,
+    "points": 5
+   }
+  ],
+  "facts": {
+   "https": true,
+   "title": "Iron Gym Burgas 35",
+   "robots": "missing",
+   "language": null,
+   "viewport": null,
+   "generator": null,
+   "tel_links": 0,
+   "word_count": 39,
+   "booking_text": null,
+   "broken_links": 1,
+   "contact_form": false,
+   "cta_detected": false,
+   "broken_images": 1,
+   "links_checked": 1,
+   "copyright_year": 2014,
+   "hours_detected": false,
+   "images_checked": 2,
+   "phones_on_site": [
+    "+44 20 7946 0200"
+   ],
+   "redirect_count": 0,
+   "messaging_links": [],
+   "prices_detected": true,
+   "social_profiles": {},
+   "booking_detected": false,
+   "response_time_ms": 0,
+   "total_word_count": 39,
+   "booking_providers": [],
+   "location_detected": false,
+   "services_detected": false,
+   "effectively_no_site": false,
+   "phones_on_site_e164": [
+    "+442079460200"
+   ],
+   "has_meta_description": false
+  },
+  "pages": [
+   {
+    "url": "https://irongym-burgas-35.outdated.demo.invalid/",
+    "title": "Iron Gym Burgas 35",
+    "words": 39,
+    "status": 200,
+    "truncated": false,
+    "elapsed_ms": 0
+   }
+  ],
+  "analyzer_version": "1.0",
+  "started_at": "2026-09-24T13:50:44.997749Z",
+  "finished_at": "2026-09-24T13:50:45.016902Z"
+ },
+ "pitches": {
+  "en": {
+   "language": "en",
+   "text": "Hi, I came across Iron Gym Burgas 35 while looking at gyms in Burgas. You have 390 Google reviews, so people clearly find you there. I noticed your site doesn't currently show an online booking option. We help businesses turn Google visitors into direct bookings. Would you be open to a quick 10-minute chat this week?",
+   "primary_opportunity": "NO_BOOKING",
+   "talking_points": [
+    "Website Health 18/100 (below 40)",
+    "No online booking mechanism detected in a booking-oriented category",
+    "No clear contact call-to-action detected on the website",
+    "Mobile issue: No mobile viewport configured (likely not mobile-friendly)",
+    "6 conversion elements not found: online booking, services section, contact call-to-action, contact form, opening hours, address/location",
+    "Outdated index 100/100 (severe problems)",
+    "Google profile: Only 2 photo(s) on the listing"
+   ]
+  },
+  "bg": {
+   "language": "bg",
+   "text": "Здравейте, попаднах на Iron Gym Burgas 35, докато разглеждах фитнес зали в Бургас. Имате 390 отзива в Google, така че хората явно ви намират там. Забелязах, че на сайта ви в момента няма възможност за онлайн резервация. Помагаме на бизнесите да превръщат посетителите от Google в директни резервации. Имате ли 10 минути тази седмица за кратък разговор?",
+   "primary_opportunity": "NO_BOOKING",
+   "talking_points": [
+    "Website Health 18/100 (below 40)",
+    "No online booking mechanism detected in a booking-oriented category",
+    "No clear contact call-to-action detected on the website",
+    "Mobile issue: No mobile viewport configured (likely not mobile-friendly)",
+    "6 conversion elements not found: online booking, services section, contact call-to-action, contact form, opening hours, address/location",
+    "Outdated index 100/100 (severe problems)",
+    "Google profile: Only 2 photo(s) on the listing"
+   ]
+  }
+ },
+ "calls": [],
+ "notes": [],
+ "events": [
+  {
+   "id": 280,
+   "type": "website_audit",
+   "data": {
+    "error": null,
+    "health": 18,
+    "status": "success",
+    "outdated": 100
+   },
+   "user_id": null,
+   "created_at": "2026-09-24T13:50:45.023879Z"
+  },
+  {
+   "id": 270,
+   "type": "created",
+   "data": {
+    "provider": "demo"
+   },
+   "user_id": 1,
+   "created_at": "2026-09-24T13:50:44.662323Z"
+  }
+ ],
+ "sources": [
+  {
+   "provider": "demo",
+   "external_id": "demo-4ae18358cef2",
+   "match_reason": null,
+   "first_seen_at": "2026-09-24T13:50:44.782173Z",
+   "last_seen_at": "2026-09-24T13:50:44.782173Z"
+  }
+ ],
+ "assigned_to": null,
+ "created_by": {
+  "id": 1,
+  "name": "Default user",
+  "email": "default@leadtracker.local"
+ },
+ "last_contacted_by": null,
+ "open_today_in_window": true,
+ "active_job_id": null
+}

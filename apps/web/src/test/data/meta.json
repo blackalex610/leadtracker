@@ -1,0 +1,428 @@
+{
+ "version": "1.0.0",
+ "environment": "development",
+ "auth_mode": "none",
+ "provider": {
+  "name": "google_places",
+  "configured": true,
+  "demo_mode": false,
+  "field_tier": "enterprise"
+ },
+ "pagespeed_configured": false,
+ "cities": {
+  "Sofia": [
+   "Center",
+   "Lozenets",
+   "Mladost",
+   "Studentski Grad",
+   "Lyulin",
+   "Nadezhda"
+  ],
+  "Plovdiv": []
+ },
+ "category_suggestions": [
+  "gyms",
+  "personal trainers",
+  "beauty salons",
+  "nail salons",
+  "hair salons",
+  "barbers",
+  "restaurants",
+  "cafes",
+  "car detailing",
+  "dentists",
+  "physiotherapists",
+  "real estate agencies",
+  "massage",
+  "yoga studios",
+  "spas",
+  "veterinarians",
+  "florists",
+  "bakeries",
+  "car repair",
+  "photographers",
+  "wedding venues",
+  "tattoo studios"
+ ],
+ "lead_statuses": [
+  "NEW",
+  "CALLED",
+  "NO_ANSWER",
+  "CALLBACK",
+  "INTERESTED",
+  "QUALIFIED",
+  "PROPOSAL",
+  "WON",
+  "LOST",
+  "DO_NOT_CONTACT"
+ ],
+ "call_outcomes": [
+  "NO_ANSWER",
+  "INTERESTED",
+  "CALLBACK",
+  "NOT_INTERESTED",
+  "WRONG_NUMBER",
+  "ALREADY_HAS_PROVIDER",
+  "DO_NOT_CONTACT"
+ ],
+ "opportunity_labels": {
+  "NO_WEBSITE": "No website",
+  "BROKEN_WEBSITE": "Broken website",
+  "OUTDATED_WEBSITE": "Outdated website",
+  "WEBSITE_REDESIGN": "Website redesign",
+  "MOBILE_PROBLEM": "Mobile problem",
+  "NO_BOOKING": "No online booking",
+  "NO_CONTACT_CTA": "No contact CTA",
+  "WEAK_CONVERSION": "Weak conversion path",
+  "SLOW_WEBSITE": "Slow website",
+  "GOOGLE_PROFILE": "Google profile gaps",
+  "LOW_REVIEWS": "Low review volume",
+  "MISSING_BUSINESS_INFO": "Missing business info"
+ },
+ "rule_meta": {
+  "no_website": {
+   "label": "No website",
+   "tier": "very_strong",
+   "opportunity": "NO_WEBSITE",
+   "description": "No website listed, or the listing links only to a social/booking-platform page."
+  },
+  "website_broken": {
+   "label": "Website unreachable / broken",
+   "tier": "very_strong",
+   "opportunity": "BROKEN_WEBSITE",
+   "description": "DNS/SSL/connection failure, error status, parked domain or 'under construction' page."
+  },
+  "low_health": {
+   "label": "Low Website Health",
+   "tier": "strong",
+   "opportunity": "WEBSITE_REDESIGN",
+   "description": "Website Health score below the configured threshold."
+  },
+  "no_booking": {
+   "label": "No booking (booking-oriented category)",
+   "tier": "very_strong",
+   "opportunity": "NO_BOOKING",
+   "description": "No online booking mechanism detected for a category where customers typically book."
+  },
+  "no_contact_cta": {
+   "label": "No clear contact CTA",
+   "tier": "strong",
+   "opportunity": "NO_CONTACT_CTA",
+   "description": "No call/contact/book call-to-action detected on the audited pages."
+  },
+  "mobile_problem": {
+   "label": "Mobile problem",
+   "tier": "strong",
+   "opportunity": "MOBILE_PROBLEM",
+   "description": "Missing/fixed viewport, Flash, or other major mobile usability signals."
+  },
+  "weak_conversion": {
+   "label": "Weak conversion path",
+   "tier": "strong",
+   "opportunity": "WEAK_CONVERSION",
+   "description": "Several conversion elements missing (phone, contact form, services, prices, hours...)."
+  },
+  "outdated_website": {
+   "label": "Outdated website",
+   "tier": "moderate",
+   "opportunity": "OUTDATED_WEBSITE",
+   "description": "Outdated index at or above the configured threshold."
+  },
+  "slow_website": {
+   "label": "Slow website",
+   "tier": "moderate",
+   "opportunity": "SLOW_WEBSITE",
+   "description": "Homepage response slower than the 'very slow' threshold."
+  },
+  "incomplete_google": {
+   "label": "Google profile gaps",
+   "tier": "moderate",
+   "opportunity": "GOOGLE_PROFILE",
+   "description": "Few photos, missing description (when requested) or possible category mismatch."
+  },
+  "missing_business_info": {
+   "label": "Missing business info",
+   "tier": "moderate",
+   "opportunity": "MISSING_BUSINESS_INFO",
+   "description": "Opening hours, phone or address missing from the listing."
+  },
+  "low_reviews": {
+   "label": "Low review volume",
+   "tier": "moderate",
+   "opportunity": "LOW_REVIEWS",
+   "description": "Fewer reviews than the configured threshold (a visibility opportunity, not a quality verdict)."
+  },
+  "discovery_category": {
+   "label": "Discovery-dependent category",
+   "tier": "contextual",
+   "opportunity": null,
+   "description": "Category relies heavily on online discovery."
+  },
+  "open_in_calling_window": {
+   "label": "Open during calling window",
+   "tier": "contextual",
+   "opportunity": null,
+   "description": "Open during the calling window on most weekdays."
+  },
+  "phone_available": {
+   "label": "Phone available",
+   "tier": "contextual",
+   "opportunity": null,
+   "description": "A valid phone number is available."
+  }
+ },
+ "signal_catalog": {
+  "not_https": {
+   "category": "technical",
+   "severity": "major",
+   "label": "Site is not served over HTTPS",
+   "penalty": 10
+  },
+  "no_https_redirect": {
+   "category": "technical",
+   "severity": "minor",
+   "label": "HTTPS works but the listed http:// address does not redirect to it",
+   "penalty": 3
+  },
+  "ssl_error": {
+   "category": "technical",
+   "severity": "major",
+   "label": "HTTPS certificate/connection error",
+   "penalty": 10
+  },
+  "very_slow": {
+   "category": "technical",
+   "severity": "major",
+   "label": "Very slow homepage response",
+   "penalty": 8
+  },
+  "slow": {
+   "category": "technical",
+   "severity": "minor",
+   "label": "Slow homepage response",
+   "penalty": 4
+  },
+  "missing_title": {
+   "category": "technical",
+   "severity": "minor",
+   "label": "Missing page title",
+   "penalty": 4
+  },
+  "missing_meta_description": {
+   "category": "technical",
+   "severity": "minor",
+   "label": "Missing meta description",
+   "penalty": 2
+  },
+  "missing_h1": {
+   "category": "technical",
+   "severity": "minor",
+   "label": "Missing main heading (H1)",
+   "penalty": 2
+  },
+  "broken_images": {
+   "category": "technical",
+   "severity": "minor",
+   "label": "Broken images",
+   "penalty": 4
+  },
+  "broken_links": {
+   "category": "technical",
+   "severity": "minor",
+   "label": "Broken internal links",
+   "penalty": 4
+  },
+  "mixed_content": {
+   "category": "technical",
+   "severity": "minor",
+   "label": "Insecure (http) resources on an HTTPS page",
+   "penalty": 3
+  },
+  "excessive_redirects": {
+   "category": "technical",
+   "severity": "minor",
+   "label": "Long redirect chain",
+   "penalty": 2
+  },
+  "no_viewport": {
+   "category": "mobile",
+   "severity": "critical",
+   "label": "No mobile viewport configured (likely not mobile-friendly)",
+   "penalty": 14
+  },
+  "viewport_not_responsive": {
+   "category": "mobile",
+   "severity": "major",
+   "label": "Viewport uses a fixed width (not responsive)",
+   "penalty": 10
+  },
+  "uses_flash": {
+   "category": "mobile",
+   "severity": "major",
+   "label": "Uses Flash content (does not work on phones)",
+   "penalty": 10
+  },
+  "table_layout": {
+   "category": "mobile",
+   "severity": "major",
+   "label": "Fixed-width table layout",
+   "penalty": 6
+  },
+  "fixed_width_css": {
+   "category": "mobile",
+   "severity": "minor",
+   "label": "Fixed-width page container in CSS",
+   "penalty": 4
+  },
+  "zoom_disabled": {
+   "category": "mobile",
+   "severity": "minor",
+   "label": "Pinch-zoom disabled",
+   "penalty": 2
+  },
+  "no_phone": {
+   "category": "conversion",
+   "severity": "major",
+   "label": "No phone number found on the website",
+   "penalty": 7
+  },
+  "no_click_to_call": {
+   "category": "conversion",
+   "severity": "minor",
+   "label": "Phone shown but not tappable (no tel: link)",
+   "penalty": 2
+  },
+  "no_contact_cta": {
+   "category": "conversion",
+   "severity": "major",
+   "label": "No clear contact call-to-action detected",
+   "penalty": 6
+  },
+  "no_booking": {
+   "category": "conversion",
+   "severity": "major",
+   "label": "No online booking mechanism detected",
+   "penalty": 6
+  },
+  "no_contact_form": {
+   "category": "conversion",
+   "severity": "minor",
+   "label": "No contact/inquiry form detected",
+   "penalty": 3
+  },
+  "no_clear_service_description": {
+   "category": "conversion",
+   "severity": "major",
+   "label": "No clear services section detected",
+   "penalty": 4
+  },
+  "no_price_information": {
+   "category": "conversion",
+   "severity": "minor",
+   "label": "No price information detected",
+   "penalty": 2
+  },
+  "no_location_information": {
+   "category": "conversion",
+   "severity": "minor",
+   "label": "No address/location information detected",
+   "penalty": 3
+  },
+  "no_hours": {
+   "category": "conversion",
+   "severity": "minor",
+   "label": "No opening hours detected",
+   "penalty": 2
+  },
+  "no_social_links": {
+   "category": "conversion",
+   "severity": "info",
+   "label": "No social media links detected",
+   "penalty": 1
+  },
+  "very_little_text": {
+   "category": "content",
+   "severity": "major",
+   "label": "Very little text content",
+   "penalty": 5
+  },
+  "outdated_copyright": {
+   "category": "content",
+   "severity": "major",
+   "label": "Outdated copyright year",
+   "penalty": 6
+  },
+  "stale_copyright": {
+   "category": "content",
+   "severity": "minor",
+   "label": "Copyright year not updated recently",
+   "penalty": 3
+  },
+  "placeholder_text": {
+   "category": "content",
+   "severity": "major",
+   "label": "Placeholder/template text found",
+   "penalty": 8
+  },
+  "under_construction": {
+   "category": "content",
+   "severity": "critical",
+   "label": "Site shows an 'under construction' / 'coming soon' page",
+   "penalty": 15
+  },
+  "parked_domain": {
+   "category": "content",
+   "severity": "critical",
+   "label": "Domain appears to be parked / for sale",
+   "penalty": 15
+  },
+  "default_server_page": {
+   "category": "content",
+   "severity": "critical",
+   "label": "Server default page instead of a website",
+   "penalty": 15
+  },
+  "generic_template_language": {
+   "category": "content",
+   "severity": "minor",
+   "label": "Generic template wording",
+   "penalty": 3
+  },
+  "unfinished_content": {
+   "category": "content",
+   "severity": "minor",
+   "label": "Many links point nowhere (#) — unfinished sections",
+   "penalty": 4
+  },
+  "prices_only_in_bgn": {
+   "category": "content",
+   "severity": "major",
+   "label": "Prices appear only in leva (BGN)",
+   "penalty": 5
+  },
+  "no_business_identity": {
+   "category": "trust",
+   "severity": "major",
+   "label": "Neither phone nor address shown on the website",
+   "penalty": 8
+  },
+  "no_privacy_policy": {
+   "category": "trust",
+   "severity": "minor",
+   "label": "No privacy/cookie policy link detected",
+   "penalty": 4
+  },
+  "no_testimonials": {
+   "category": "trust",
+   "severity": "minor",
+   "label": "No testimonials or reviews section detected",
+   "penalty": 3
+  },
+  "no_about": {
+   "category": "trust",
+   "severity": "minor",
+   "label": "No 'About us' section detected",
+   "penalty": 3
+  }
+ }
+}
