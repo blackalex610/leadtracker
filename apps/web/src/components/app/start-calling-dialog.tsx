@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { PRIORITIES, PRIORITY_LABELS, type CallingFilters } from "@leadtracker/shared";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { PhoneCallIcon } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -53,10 +53,17 @@ export function StartCallingDialog({ trigger, defaults }: { trigger?: ReactNode;
             One lead at a time, keyboard driven. Do-not-contact numbers are never included.
           </DialogDescription>
         </DialogHeader>
-        {open && <CallingForm defaults={defaults} onDone={() => setOpen(false)} />}
+        {open && <CallingFormLoader defaults={defaults} onDone={() => setOpen(false)} />}
       </DialogContent>
     </Dialog>
   );
+}
+
+function CallingFormLoader(props: { defaults?: Partial<CallingFormValues>; onDone: () => void }) {
+  const settings = useSettings();
+  // Mount the form once settings are known so its defaults never overwrite user input later.
+  if (!settings.data && !settings.error) return <p className="text-xs text-muted-foreground">Loading…</p>;
+  return <CallingForm {...props} />;
 }
 
 function CallingForm({ defaults, onDone }: { defaults?: Partial<CallingFormValues>; onDone: () => void }) {
@@ -70,7 +77,7 @@ function CallingForm({ defaults, onDone }: { defaults?: Partial<CallingFormValue
     resolver: zodResolver(callingSchema),
     defaultValues: {
       niche_key: "any",
-      city: settings.data?.runtime.general.default_city ?? "",
+      city: "",
       window_start: calling?.window_start ?? "19:00",
       window_end: calling?.window_end ?? "21:00",
       open_today: true,
@@ -102,8 +109,12 @@ function CallingForm({ defaults, onDone }: { defaults?: Partial<CallingFormValue
 
   // Picking a niche applies its calling window.
   const niche = useWatch({ control: form.control, name: "niche_key" });
+  const appliedNiche = useRef<string | null>(null);
   useEffect(() => {
-    const preset = presets.data?.find((p) => p.key === niche);
+    // Apply a template's calling window once per selection (not on refetch).
+    if (!presets.data || appliedNiche.current === niche) return;
+    appliedNiche.current = niche;
+    const preset = presets.data.find((p) => p.key === niche);
     if (preset?.calling_window_start && preset.calling_window_end) {
       form.setValue("window_start", preset.calling_window_start);
       form.setValue("window_end", preset.calling_window_end);

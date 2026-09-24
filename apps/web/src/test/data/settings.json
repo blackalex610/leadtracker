@@ -1,0 +1,228 @@
+{
+ "runtime": {
+  "general": {
+   "default_country": "BG",
+   "default_city": "Sofia",
+   "timezone": "Europe/Sofia",
+   "provider_language": "bg",
+   "pitch_language": "en"
+  },
+  "calling": {
+   "window_start": "19:00",
+   "window_end": "21:00",
+   "recall_cooldown_hours": 20,
+   "include_unknown_hours": true,
+   "default_session_limit": 50
+  },
+  "audit": {
+   "timeout_ms": 10000,
+   "max_pages": 4,
+   "max_concurrent": 5,
+   "respect_robots": true,
+   "max_response_kb": 2048,
+   "slow_threshold_ms": 2500,
+   "very_slow_threshold_ms": 5000,
+   "cache_days": 14,
+   "check_assets": true,
+   "max_asset_checks": 6,
+   "pagespeed_enabled": false
+  },
+  "search": {
+   "default_max_results": 60,
+   "max_results_limit": 500,
+   "provider_concurrency": 2,
+   "provider_requests_per_second": 5.0,
+   "cache_ttl_hours": 24,
+   "audit_after_search": true
+  },
+  "csv": {
+   "delimiter": ",",
+   "include_bom": true
+  },
+  "pricing": {
+   "currency": "USD",
+   "display_currency": "EUR",
+   "exchange_rate": 0.86,
+   "skus": {
+    "text_search_pro": {
+     "price_per_1000": 32.0,
+     "free_per_month": 5000
+    },
+    "text_search_enterprise": {
+     "price_per_1000": 35.0,
+     "free_per_month": 1000
+    },
+    "text_search_enterprise_atmosphere": {
+     "price_per_1000": 40.0,
+     "free_per_month": 1000
+    },
+    "place_details_enterprise": {
+     "price_per_1000": 20.0,
+     "free_per_month": 1000
+    },
+    "place_details_enterprise_atmosphere": {
+     "price_per_1000": 25.0,
+     "free_per_month": 1000
+    },
+    "pagespeed": {
+     "price_per_1000": 0.0,
+     "free_per_month": 0
+    }
+   }
+  },
+  "scoring": {
+   "rules": {
+    "no_website": {
+     "points": 35,
+     "enabled": true
+    },
+    "website_broken": {
+     "points": 30,
+     "enabled": true
+    },
+    "low_health": {
+     "points": 25,
+     "enabled": true
+    },
+    "no_booking": {
+     "points": 15,
+     "enabled": true
+    },
+    "no_contact_cta": {
+     "points": 10,
+     "enabled": true
+    },
+    "mobile_problem": {
+     "points": 10,
+     "enabled": true
+    },
+    "weak_conversion": {
+     "points": 10,
+     "enabled": true
+    },
+    "outdated_website": {
+     "points": 10,
+     "enabled": true
+    },
+    "slow_website": {
+     "points": 5,
+     "enabled": true
+    },
+    "incomplete_google": {
+     "points": 5,
+     "enabled": true
+    },
+    "missing_business_info": {
+     "points": 5,
+     "enabled": true
+    },
+    "low_reviews": {
+     "points": 5,
+     "enabled": true
+    },
+    "discovery_category": {
+     "points": 5,
+     "enabled": true
+    },
+    "open_in_calling_window": {
+     "points": 5,
+     "enabled": true
+    },
+    "phone_available": {
+     "points": 5,
+     "enabled": true
+    }
+   },
+   "hot_min_score": 50,
+   "warm_min_score": 25,
+   "hot_requires_phone": true,
+   "hot_requires_strong_category": true,
+   "hot_requires_major_opportunity": true,
+   "warm_requires_phone": true,
+   "major_opportunities": [
+    "NO_WEBSITE",
+    "BROKEN_WEBSITE",
+    "WEBSITE_REDESIGN",
+    "NO_BOOKING"
+   ],
+   "low_health_threshold": 40,
+   "outdated_threshold": 50,
+   "low_review_threshold": 20,
+   "weak_conversion_min_missing": 3,
+   "few_photos_threshold": 3,
+   "strong_types": [
+    "gym",
+    "fitness_center",
+    "yoga_studio",
+    "beauty_salon",
+    "hair_salon",
+    "hair_care",
+    "nail_salon",
+    "barber_shop",
+    "spa",
+    "massage",
+    "skin_care_clinic",
+    "beautician",
+    "makeup_artist",
+    "tanning_studio",
+    "dentist",
+    "dental_clinic",
+    "physiotherapist",
+    "chiropractor",
+    "doctor",
+    "veterinary_care",
+    "restaurant",
+    "cafe",
+    "coffee_shop",
+    "bar",
+    "bakery",
+    "car_wash",
+    "car_repair",
+    "real_estate_agency",
+    "florist",
+    "photographer",
+    "wedding_venue",
+    "lodging",
+    "hotel"
+   ],
+   "booking_types": [
+    "gym",
+    "fitness_center",
+    "yoga_studio",
+    "beauty_salon",
+    "hair_salon",
+    "hair_care",
+    "nail_salon",
+    "barber_shop",
+    "spa",
+    "massage",
+    "skin_care_clinic",
+    "beautician",
+    "tanning_studio",
+    "dentist",
+    "dental_clinic",
+    "physiotherapist",
+    "chiropractor",
+    "doctor",
+    "veterinary_care",
+    "restaurant",
+    "car_wash"
+   ]
+  }
+ },
+ "environment": {
+  "provider": {
+   "name": "google_places",
+   "configured": true,
+   "demo_mode": false,
+   "field_tier": "enterprise"
+  },
+  "provider_api_key_set": true,
+  "pagespeed_api_key_set": false,
+  "places_field_tier": "enterprise",
+  "demo_mode": false,
+  "auth_mode": "none",
+  "environment": "development",
+  "google_latlng_retention_days": 30
+ }
+}

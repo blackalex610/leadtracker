@@ -8,7 +8,7 @@ import {
 } from "@leadtracker/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MapPinIcon, SearchIcon, SlidersHorizontalIcon } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
@@ -45,6 +45,7 @@ export function FindLeadsPage() {
   const initialPreset = (location.state as { preset?: string } | null)?.preset ?? "gyms";
   const jobId = params.get("job") ? Number(params.get("job")) : null;
   const meta = useMeta();
+  const settings = useSettings();
   const provider = meta.data?.provider;
   const blocked = provider ? !provider.configured && !provider.demo_mode : false;
 
@@ -62,7 +63,13 @@ export function FindLeadsPage() {
               </Link>
             </InlineNotice>
           )}
-          <SearchForm initialPreset={initialPreset} disabled={blocked} onStarted={(id) => setParams({ job: String(id) })} />
+          {settings.data ? (
+            <SearchForm initialPreset={initialPreset} disabled={blocked} onStarted={(id) => setParams({ job: String(id) })} />
+          ) : settings.error ? (
+            <ErrorState error={settings.error} onRetry={() => void settings.refetch()} />
+          ) : (
+            <Skeleton className="h-[34rem]" />
+          )}
         </div>
         <div className="min-w-0">
           {jobId ? <JobResults jobId={jobId} onRetried={(id) => setParams({ job: String(id) })} /> : <RecentHint />}
@@ -122,17 +129,13 @@ function SearchForm({ initialPreset, disabled, onStarted }: { initialPreset: str
     },
   });
 
-  // Settings may load after the form mounts.
-  useEffect(() => {
-    if (!runtime) return;
-    if (!form.formState.dirtyFields.location) form.setValue("location", runtime.general.default_city);
-    if (!form.formState.dirtyFields.max_results) form.setValue("max_results", runtime.search.default_max_results);
-  }, [runtime, form]);
-
   const presetKey = useWatch({ control: form.control, name: "preset_key" });
+  const appliedPreset = useRef<string | null>(null);
   useEffect(() => {
     const preset = presets.data?.find((p) => p.key === presetKey);
-    if (!preset) return;
+    // Apply a template only when the selection changes, never on a data refetch.
+    if (!preset || appliedPreset.current === presetKey) return;
+    appliedPreset.current = presetKey;
     form.setValue("category", preset.category_query, { shouldValidate: true });
     if (preset.keywords) form.setValue("keywords", preset.keywords);
     if (preset.calling_window_start && preset.calling_window_end) {

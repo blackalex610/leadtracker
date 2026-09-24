@@ -1,0 +1,80 @@
+[
+ {
+  "label": "Gyms",
+  "label_bg": "фитнес зали",
+  "category_query": "gyms",
+  "included_type": "gym",
+  "keywords": null,
+  "match_types": [
+   "gym",
+   "fitness_center"
+  ],
+  "calling_window_start": "19:00",
+  "calling_window_end": "21:00",
+  "booking_oriented": true,
+  "discovery_dependent": true,
+  "strong_opportunities": [
+   "NO_WEBSITE",
+   "NO_BOOKING",
+   "WEBSITE_REDESIGN"
+  ],
+  "sort_order": 0,
+  "id": 1,
+  "key": "gyms",
+  "is_builtin": true,
+  "lead_count": 70
+ },
+ {
+  "label": "Personal trainers",
+  "label_bg": "персонални треньори",
+  "category_query": "personal trainer",
+  "included_type": null,
+  "keywords": null,
+  "match_types": [
+   "personal_trainer",
+   "gym",
+   "fitness_center"
+  ],
+  "calling_window_start": null,
+  "calling_window_end": null,
+  "booking_oriented": true,
+  "discovery_dependent": true,
+  "strong_opportunities": [
+   "NO_WEBSITE",
+   "NO_BOOKING"
+  ],
+  "sort_order": 10,
+  "id": 2,
+  "key": "personal_trainers",
+  "is_builtin": true,
+  "lead_count": 0
+ },
+ {
+  "label": "Beauty salons",
+  "label_bg": "салони за красота",
+  "category_query": "beauty salons",
+  "included_type": "beauty_salon",
+  "keywords": null,
+  "match_types": [
+   "beauty_salon",
+   "spa",
+   "skin_care_clinic",
+   "beautician",
+   "makeup_artist"
+  ],
+  "calling_window_start": null,
+  "calling_window_end": null,
+  "booking_oriented": true,
+  "discovery_dependent": true,
+  "strong_opportunities": [
+   "NO_WEBSITE",
+   "NO_BOOKING",
+   "OUTDATED_WEBSITE"
+  ],
+  "sort_order": 20,
+  "id": 3,
+  "key": "beauty",
+  "is_builtin": true,
+  "lead_count": 24
+ }
+]

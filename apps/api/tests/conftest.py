@@ -49,7 +49,17 @@ from app.services import settings as settings_service  # noqa: E402
 configure_logging("WARNING")
 
 
+def _assert_test_database(url: str) -> None:
+    """The suite drops and recreates the schema — never run it against a real database."""
+    name = url.rsplit("/", 1)[-1].split("?", 1)[0]
+    if not name.endswith("_test") and os.environ.get("ALLOW_TEST_DB_RESET") != "1":
+        raise RuntimeError(
+            f"Refusing to reset database '{name}': TEST_DATABASE_URL must point to a *_test database"
+        )
+
+
 def _run_migrations() -> None:
+    _assert_test_database(TEST_DATABASE_URL)
     from alembic.config import Config
 
     from alembic import command

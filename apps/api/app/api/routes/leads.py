@@ -233,6 +233,8 @@ async def update_lead(lead_id: int, body: LeadUpdate, session: SessionDep, user:
 
 @router.post("/bulk", response_model=BulkResult)
 async def bulk_update(body: BulkLeadUpdate, session: SessionDep, user: CurrentUser) -> BulkResult:
+    if body.assigned_to_id is not None and await session.get(User, body.assigned_to_id) is None:
+        raise HTTPException(status_code=422, detail={"code": "unknown_user", "message": "Unknown user"})
     businesses = (await session.execute(select(Business).where(Business.id.in_(body.ids)))).scalars().all()
     updated = skipped = 0
     for business in businesses:

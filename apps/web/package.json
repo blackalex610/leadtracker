@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

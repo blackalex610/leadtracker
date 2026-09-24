@@ -1,0 +1,72 @@
+# Local full stack: Postgres + API + worker + web (nginx).
+#   cp .env.example .env   # then edit PROVIDER_API_KEY or set DEMO_MODE=true
+#   docker compose up --build
+# Open http://localhost:8080  (API docs: http://localhost:8080/api/docs)
+#
+# For day-to-day development you can run only the database:
+#   docker compose up db
+# and start the API/web natively (see README).
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: leadtracker
+      POSTGRES_PASSWORD: leadtracker
+      POSTGRES_DB: leadtracker
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/10-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U leadtracker -d leadtracker"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://leadtracker:leadtracker@db:5432/leadtracker
+      RUN_MIGRATIONS: "true"
+      RUN_WORKER: "false"
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LOG_JSON: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    command: ["python", "-m", "app.worker"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://leadtracker:leadtracker@db:5432/leadtracker
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LOG_JSON: "false"
+    healthcheck:
+      disable: true
+    depends_on:
+      api:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    environment:
+      API_UPSTREAM: http://api:8000
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+
+volumes:
+  pgdata:

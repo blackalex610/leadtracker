@@ -412,3 +412,47 @@ async def test_rescore_after_settings_change(
     async with sessionmaker() as session:
         business = await session.get(Business, leads[0])
         assert business is not None and "NO_WEBSITE" not in business.opportunity_types
+
+
+async def test_cross_origin_writes_are_blocked(client: httpx.AsyncClient, leads: list[int]) -> None:
+    evil = await client.post(
+        f"/api/leads/{leads[0]}/notes", json={"body": "x"}, headers={"Origin": "https://evil.example"}
+    )
+    assert evil.status_code == 403
+    assert evil.json()["detail"]["code"] == "origin_not_allowed"
+    same = await client.post(
+        f"/api/leads/{leads[0]}/notes", json={"body": "x"}, headers={"Origin": "http://test"}
+    )
+    assert same.status_code == 201
+    allowed = await client.post(
+        f"/api/leads/{leads[0]}/notes", json={"body": "x"}, headers={"Origin": "http://localhost:5173"}
+    )
+    assert allowed.status_code == 201
+    reads = await client.get("/api/leads", headers={"Origin": "https://evil.example"})
+    assert reads.status_code == 200  # CORS governs reads; no state change
+
+
+def test_logs_redact_secrets() -> None:
+    from app.log import redact_processor, register_secret
+
+    register_secret("AIzaSyTEST-secret-key-123")
+    event = redact_processor(
+        None,
+        "info",
+        {
+            "event": "provider_error",
+            "url": "https://example.com/?key=AIzaSyTEST-secret-key-123&x=1",
+            "headers": {"X-Goog-Api-Key": "AIzaSyTEST-secret-key-123", "accept": "json"},
+            "api_key": "anything",
+            "message": "failed with AIzaSyTEST-secret-key-123",
+        },
+    )
+    text = str(event)
+    assert "AIzaSyTEST-secret-key-123" not in text
+    assert event["api_key"] == "[REDACTED]"
+    assert event["headers"]["accept"] == "json"
+
+
+async def test_bulk_assign_validates_user(client: httpx.AsyncClient, leads: list[int]) -> None:
+    r = await client.post("/api/leads/bulk", json={"ids": leads, "assigned_to_id": 9999})
+    assert r.status_code == 422 and r.json()["detail"]["code"] == "unknown_user"

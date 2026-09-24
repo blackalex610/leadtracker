@@ -64,6 +64,23 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+class OriginCheckMiddleware(BaseHTTPMiddleware):
+    """CSRF defence in depth: a state-changing request that carries an Origin header
+    must come from the API's own host or an allowed CORS origin."""
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        origin = request.headers.get("origin")
+        if request.method in UNSAFE_METHODS and origin and origin != "null":
+            host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+            origin_host = origin.split("://", 1)[-1].rstrip("/")
+            if origin_host != host and origin.rstrip("/") not in get_settings().cors_origins:
+                return _error(403, "origin_not_allowed", "Cross-origin request blocked")
+        return await call_next(request)
+
+
 def _error(status_code: int, code: str, message: str, extra: dict[str, Any] | None = None) -> JSONResponse:
     return JSONResponse(
         status_code=status_code, content={"detail": {"code": code, "message": message, **(extra or {})}}
@@ -128,6 +145,7 @@ def create_app(*, with_lifespan: bool = True) -> FastAPI:
         redoc_url="/api/redoc",
         openapi_url="/api/openapi.json",
     )
+    app.add_middleware(OriginCheckMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(
         CORSMiddleware,
