@@ -3,13 +3,13 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from app.core.enums import CallOutcome, DataQuality, LeadStatus, OpportunityType, Priority
-from app.schemas.common import ORMModel
+from app.schemas.common import ORMModel, Schema
 
 
-class ScoreReason(BaseModel):
+class ScoreReason(Schema):
     rule: str | None
     points: int
     text: str
@@ -129,7 +129,7 @@ class SourceOut(ORMModel):
     last_seen_at: datetime
 
 
-class PitchOut(BaseModel):
+class PitchOut(Schema):
     language: str
     text: str
     primary_opportunity: str | None
@@ -185,7 +185,7 @@ class LeadDetail(LeadSummary):
     active_job_id: int | None = None
 
 
-class LeadUpdate(BaseModel):
+class LeadUpdate(Schema):
     status: LeadStatus | None = None
     assigned_to_id: int | None = None
     unassign: bool = False
@@ -196,42 +196,42 @@ class LeadUpdate(BaseModel):
     confirm_reenable: bool = False
 
 
-class BulkLeadUpdate(BaseModel):
+class BulkLeadUpdate(Schema):
     ids: list[int] = Field(min_length=1, max_length=1000)
     status: LeadStatus | None = None
     assigned_to_id: int | None = None
     unassign: bool = False
 
 
-class BulkResult(BaseModel):
+class BulkResult(Schema):
     updated: int
     skipped: int = 0
 
 
-class CallCreate(BaseModel):
+class CallCreate(Schema):
     outcome: CallOutcome
     note: str | None = Field(default=None, max_length=5000)
     callback_at: datetime | None = None
     session_id: int | None = None
 
 
-class CallResult(BaseModel):
+class CallResult(Schema):
     call: CallOut
     status: LeadStatus
     suppressed: bool
     next_callback_at: datetime | None
 
 
-class NoteCreate(BaseModel):
+class NoteCreate(Schema):
     body: str = Field(min_length=1, max_length=10000)
 
 
-class JobRef(BaseModel):
+class JobRef(Schema):
     job_id: int
     status: str
 
 
-class AuditRequest(BaseModel):
+class AuditRequest(Schema):
     ids: list[int] = Field(min_length=1, max_length=2000)
     force: bool = True
 

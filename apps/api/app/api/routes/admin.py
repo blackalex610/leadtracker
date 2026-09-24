@@ -15,10 +15,11 @@ from app.core.phone import normalize_phone
 from app.models import Business, NichePreset, SuppressionEntry
 from app.providers.registry import provider_status
 from app.schemas.common import OkResponse
+from app.schemas.dashboard import SettingsOut, UsageOut
 from app.schemas.leads import JobRef
 from app.schemas.misc import PresetCreate, PresetOut, PresetUpdate, SuppressionCreate, SuppressionOut
 from app.services.presets import preset_usage
-from app.services.settings import load_settings, update_settings
+from app.services.settings import RuntimeSettings, load_settings, update_settings
 from app.services.suppression import reenable, suppress
 from app.services.usage import monthly_usage
 from app.worker.queue import enqueue
@@ -26,32 +27,34 @@ from app.worker.queue import enqueue
 router = APIRouter()
 
 
-def _settings_payload(runtime: Any) -> dict[str, Any]:
+def _settings_payload(runtime: RuntimeSettings) -> SettingsOut:
     env = get_settings()
-    return {
-        "runtime": runtime.model_dump(mode="json"),
-        "environment": {
-            "provider": provider_status(env),
-            "provider_api_key_set": env.provider_api_key is not None,
-            "pagespeed_api_key_set": env.pagespeed_api_key is not None,
-            "places_field_tier": env.places_field_tier,
-            "demo_mode": env.demo_mode,
-            "auth_mode": env.auth_mode,
-            "environment": env.environment,
-            "google_latlng_retention_days": env.google_latlng_retention_days,
-        },
-    }
+    return SettingsOut.model_validate(
+        {
+            "runtime": runtime,
+            "environment": {
+                "provider": provider_status(env),
+                "provider_api_key_set": env.provider_api_key is not None,
+                "pagespeed_api_key_set": env.pagespeed_api_key is not None,
+                "places_field_tier": env.places_field_tier,
+                "demo_mode": env.demo_mode,
+                "auth_mode": env.auth_mode,
+                "environment": env.environment,
+                "google_latlng_retention_days": env.google_latlng_retention_days,
+            },
+        }
+    )
 
 
-@router.get("/settings", tags=["settings"])
-async def get_app_settings(session: SessionDep, _user: CurrentUser) -> dict[str, Any]:
+@router.get("/settings", response_model=SettingsOut, tags=["settings"])
+async def get_app_settings(session: SessionDep, _user: CurrentUser) -> SettingsOut:
     return _settings_payload(await load_settings(session, use_cache=False))
 
 
-@router.patch("/settings", tags=["settings"])
+@router.patch("/settings", response_model=SettingsOut, tags=["settings"])
 async def patch_app_settings(
     patch: dict[str, dict[str, Any]], session: SessionDep, user: CurrentUser
-) -> dict[str, Any]:
+) -> SettingsOut:
     forbidden = {"provider_api_key", "api_key", "secret", "token"}
     for values in patch.values():
         if not isinstance(values, dict) or forbidden & {k.lower() for k in values}:
@@ -85,10 +88,10 @@ async def rescore_all(session: SessionDep, user: CurrentUser) -> JobRef:
     return JobRef(job_id=job.id, status=job.status)
 
 
-@router.get("/usage", tags=["settings"])
-async def usage(session: SessionDep, _user: CurrentUser) -> dict[str, Any]:
+@router.get("/usage", response_model=UsageOut, tags=["settings"])
+async def usage(session: SessionDep, _user: CurrentUser) -> UsageOut:
     runtime = await load_settings(session)
-    return await monthly_usage(session, runtime.pricing)
+    return UsageOut.model_validate(await monthly_usage(session, runtime.pricing))
 
 
 # --- presets -------------------------------------------------------------------------------------

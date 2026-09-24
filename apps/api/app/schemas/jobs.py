@@ -3,10 +3,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel
-
 from app.core.enums import JobStatus
-from app.schemas.common import ORMModel
+from app.schemas.common import ORMModel, Schema
 
 
 class JobOut(ORMModel):
@@ -46,7 +44,7 @@ class SearchJobDetail(JobOut):
     queries: list[SearchQueryOut] = []
 
 
-class SearchEstimate(BaseModel):
+class SearchEstimate(Schema):
     queries: int
     max_requests: int
     sku: str | None

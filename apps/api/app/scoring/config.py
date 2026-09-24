@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.enums import OpportunityType
 
@@ -28,6 +28,8 @@ class RuleKey(StrEnum):
 
 
 class RuleMeta(BaseModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
+
     label: str
     tier: str
     opportunity: OpportunityType | None
@@ -129,6 +131,8 @@ RULE_META: dict[RuleKey, RuleMeta] = {
 
 
 class ScoringRule(BaseModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
+
     points: int = Field(ge=0, le=100)
     enabled: bool = True
 
@@ -168,6 +172,8 @@ DEFAULT_BOOKING_TYPES = [
 
 
 class ScoringConfig(BaseModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
+
     rules: dict[RuleKey, ScoringRule] = Field(
         default_factory=lambda: {k: ScoringRule(points=v) for k, v in DEFAULT_RULE_POINTS.items()}
     )

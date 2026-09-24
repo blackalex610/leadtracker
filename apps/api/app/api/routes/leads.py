@@ -15,6 +15,7 @@ from app.db import get_sessionmaker
 from app.models import Business, BusinessContact, LeadEvent, Note, SuppressionEntry, User
 from app.providers.registry import get_provider
 from app.schemas.common import Page
+from app.schemas.dashboard import FacetsOut, FacetValue
 from app.schemas.leads import (
     AuditRequest,
     BulkLeadUpdate,
@@ -65,8 +66,8 @@ async def get_leads(
     return Page(items=items, total=total, page=query.page, page_size=query.page_size)
 
 
-@router.get("/facets")
-async def facets(session: SessionDep, _user: CurrentUser) -> dict[str, Any]:
+@router.get("/facets", response_model=FacetsOut)
+async def facets(session: SessionDep, _user: CurrentUser) -> FacetsOut:
     categories = (
         await session.execute(
             select(Business.category, func.count())
@@ -88,11 +89,11 @@ async def facets(session: SessionDep, _user: CurrentUser) -> dict[str, Any]:
     niches = (
         await session.execute(select(distinct(Business.niche_key)).where(Business.niche_key.is_not(None)))
     ).scalars()
-    return {
-        "categories": [{"value": c, "count": n} for c, n in categories],
-        "cities": [{"value": c, "count": n} for c, n in cities],
-        "niches": sorted(niches),
-    }
+    return FacetsOut(
+        categories=[FacetValue(value=c, count=n) for c, n in categories],
+        cities=[FacetValue(value=c, count=n) for c, n in cities],
+        niches=sorted(niches),
+    )
 
 
 @router.get("/{lead_id}", response_model=LeadDetail)

@@ -3,11 +3,11 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
 
 from app.core.enums import LeadStatus, OpportunityType, Priority
 from app.core.opening_hours import parse_hhmm
-from app.schemas.common import ORMModel
+from app.schemas.common import ORMModel, Schema
 from app.schemas.leads import LeadSummary, PitchOut, ScoreReason
 
 
@@ -22,17 +22,17 @@ class UserOut(ORMModel):
     last_login_at: datetime | None
 
 
-class LoginRequest(BaseModel):
+class LoginRequest(Schema):
     token: str = Field(min_length=10, max_length=200)
 
 
-class MeResponse(BaseModel):
+class MeResponse(Schema):
     user: UserOut
     auth_mode: str
 
 
 # --- presets --------------------------------------------------------------------------
-class PresetBase(BaseModel):
+class PresetBase(Schema):
     label: str = Field(min_length=1, max_length=120)
     label_bg: str | None = Field(default=None, max_length=120)
     category_query: str = Field(min_length=2, max_length=200)
@@ -59,7 +59,7 @@ class PresetCreate(PresetBase):
     key: str = Field(min_length=2, max_length=64, pattern=r"^[a-z0-9_]+$")
 
 
-class PresetUpdate(BaseModel):
+class PresetUpdate(Schema):
     label: str | None = Field(default=None, min_length=1, max_length=120)
     label_bg: str | None = None
     category_query: str | None = Field(default=None, min_length=2, max_length=200)
@@ -82,7 +82,7 @@ class PresetOut(ORMModel, PresetBase):
 
 
 # --- suppression ------------------------------------------------------------------------
-class SuppressionCreate(BaseModel):
+class SuppressionCreate(Schema):
     phone: str | None = Field(default=None, max_length=64)
     business_id: int | None = None
     reason: str | None = Field(default=None, max_length=1000)
@@ -100,7 +100,7 @@ class SuppressionOut(ORMModel):
 
 
 # --- calling -------------------------------------------------------------------------------
-class CallingFilters(BaseModel):
+class CallingFilters(Schema):
     niche_key: str | None = None
     category: str | None = Field(default=None, max_length=200)
     city: str | None = Field(default=None, max_length=120)
@@ -126,7 +126,7 @@ class CallingFilters(BaseModel):
         return v
 
 
-class CallingCard(BaseModel):
+class CallingCard(Schema):
     lead: LeadSummary
     reasons: list[ScoreReason]
     pitch: PitchOut | None
@@ -140,7 +140,7 @@ class CallingCard(BaseModel):
     not_callable_reason: str | None
 
 
-class CallingSessionOut(BaseModel):
+class CallingSessionOut(Schema):
     id: int
     filters: dict[str, Any]
     lead_ids: list[int]
@@ -151,7 +151,7 @@ class CallingSessionOut(BaseModel):
     cards: list[CallingCard]
 
 
-class CallingSessionSummary(BaseModel):
+class CallingSessionSummary(Schema):
     id: int
     started_at: datetime
     ended_at: datetime | None
@@ -161,17 +161,17 @@ class CallingSessionSummary(BaseModel):
     filters: dict[str, Any]
 
 
-class CallingPreview(BaseModel):
+class CallingPreview(Schema):
     count: int
     sample: list[LeadSummary]
 
 
-class CallingSessionUpdate(BaseModel):
+class CallingSessionUpdate(Schema):
     position: int = Field(ge=0)
 
 
 # --- import --------------------------------------------------------------------------------
-class ImportPreviewRow(BaseModel):
+class ImportPreviewRow(Schema):
     index: int
     values: dict[str, str | None]
     status: Literal["new", "duplicate", "invalid"]
@@ -181,7 +181,7 @@ class ImportPreviewRow(BaseModel):
     issues: list[str] = Field(default_factory=list)
 
 
-class ImportPreview(BaseModel):
+class ImportPreview(Schema):
     batch_id: int
     filename: str
     columns: list[str]
@@ -192,7 +192,7 @@ class ImportPreview(BaseModel):
     target_fields: list[str]
 
 
-class ImportCommit(BaseModel):
+class ImportCommit(Schema):
     batch_id: int
     mapping: dict[str, str | None] | None = None
     duplicate_strategy: Literal["skip", "fill_empty"] = "skip"
@@ -200,7 +200,7 @@ class ImportCommit(BaseModel):
     skip_rows: list[int] = Field(default_factory=list)
 
 
-class ImportResult(BaseModel):
+class ImportResult(Schema):
     created: int
     merged: int
     skipped_duplicates: int
@@ -209,14 +209,14 @@ class ImportResult(BaseModel):
 
 
 # --- meta ------------------------------------------------------------------------------------
-class ProviderStatusOut(BaseModel):
+class ProviderStatusOut(Schema):
     name: str
     configured: bool
     demo_mode: bool
     field_tier: str | None
 
 
-class MetaOut(BaseModel):
+class MetaOut(Schema):
     version: str
     environment: str
     auth_mode: str
