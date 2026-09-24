@@ -41,7 +41,7 @@ from app.services.presets import load_niches
 from app.services.provider_gateway import ProviderGateway
 from app.services.scoring_service import booking_expected, rescore_business
 from app.services.settings import RuntimeSettings, load_settings
-from app.worker.queue import JobCancelled, JobContext, JobOutcome
+from app.worker.queue import JobCancelled, JobContext, JobOutcome, JobYield
 
 log = get_logger(__name__)
 
@@ -155,7 +155,18 @@ async def _preset(session: AsyncSession, key: str | None) -> NichePreset | None:
     return (await session.execute(select(NichePreset).where(NichePreset.key == key))).scalar_one_or_none()
 
 
+def _search_checkpoint(ctx: JobContext, next_query: int, found_ids: set[int], to_audit: list[int]) -> None:
+    ctx.checkpoint = {
+        "phase": "search",
+        "next_query": next_query,
+        "found_ids": sorted(found_ids),
+        "to_audit": list(to_audit),
+    }
+
+
 async def run_search_job(ctx: JobContext) -> JobOutcome:
+    """Resumable: a time-boxed run stops between queries (search phase) or between
+    audits (audit phase) and continues from ``ctx.checkpoint`` on the next run."""
     req = SearchRequest.model_validate(ctx.params)
     async with ctx.sessionmaker() as session:
         runtime = await load_settings(session, use_cache=False)
@@ -165,47 +176,62 @@ async def run_search_job(ctx: JobContext) -> JobOutcome:
         req.window_start or (preset.calling_window_start if preset else None) or runtime.calling.window_start,
         req.window_end or (preset.calling_window_end if preset else None) or runtime.calling.window_end,
     )
-    log.info("search_job_started", job_id=ctx.job_id, category=req.category, location=req.location)
-
-    provider = get_provider(runtime.search.provider_requests_per_second)
-    gateway = ProviderGateway(provider, ctx.sessionmaker)
     queries = plan_queries(req)
-    ctx.counters.update({"queries_planned": len(queries)})
-    ctx.total = 0
-    await ctx.flush("searching")
+    checkpoint = dict(ctx.checkpoint)
+    phase = checkpoint.get("phase", "search")
+    next_query = int(checkpoint.get("next_query", 0))
+    found_ids: set[int] = {int(i) for i in checkpoint.get("found_ids", [])}
+    to_audit: list[int] = [int(i) for i in checkpoint.get("to_audit", [])]
+    if ctx.resumed:
+        log.info("search_job_resumed", job_id=ctx.job_id, phase=phase, next_query=next_query)
+    else:
+        log.info("search_job_started", job_id=ctx.job_id, category=req.category, location=req.location)
+        ctx.counters.update({"queries_planned": len(queries)})
+        ctx.total = 0
 
-    found_ids: set[int] = set()
-    to_audit: list[int] = []
     fatal: ProviderError | None = None
     try:
-        for planned in queries:
-            if len(found_ids) >= req.max_results:
-                break
-            await ctx.check_cancelled()
-            try:
-                await _run_query(
-                    ctx, gateway, planned, req, runtime, niches, preset, window, found_ids, to_audit
-                )
-            except FATAL_PROVIDER_ERRORS as exc:
-                fatal = exc
-                break
-            except ProviderError as exc:
-                ctx.add_error(exc.code, exc.message, query=planned.text)
-                log.warning("provider_error", job_id=ctx.job_id, code=exc.code, query=planned.text)
+        if phase == "search":
+            provider = get_provider(runtime.search.provider_requests_per_second)
+            gateway = ProviderGateway(provider, ctx.sessionmaker)
+            _search_checkpoint(ctx, next_query, found_ids, to_audit)
+            await ctx.flush("searching")
+            for index in range(next_query, len(queries)):
+                planned = queries[index]
+                if len(found_ids) >= req.max_results:
+                    break
+                await ctx.check_cancelled()
+                _search_checkpoint(ctx, index, found_ids, to_audit)
+                if index > next_query:
+                    ctx.check_time()
+                try:
+                    await _run_query(
+                        ctx, gateway, planned, req, runtime, niches, preset, window, found_ids, to_audit
+                    )
+                except FATAL_PROVIDER_ERRORS as exc:
+                    fatal = exc
+                    break
+                except ProviderError as exc:
+                    ctx.add_error(exc.code, exc.message, query=planned.text)
+                    log.warning("provider_error", job_id=ctx.job_id, code=exc.code, query=planned.text)
+            found_count = len(found_ids)
+        else:
+            found_count = int(checkpoint.get("found", 0))
 
         if fatal is None and to_audit and req.audit_websites and runtime.search.audit_after_search:
+            ctx.checkpoint = {"phase": "audit", "found": found_count, "to_audit": to_audit}
             await ctx.flush("auditing")
             await audit_businesses(ctx, to_audit, runtime, niches, force=False)
     except JobCancelled:
         await ctx.flush("cancelled")
-        return JobOutcome(JobStatus.CANCELLED, {"found": len(found_ids)})
+        return JobOutcome(JobStatus.CANCELLED, {"found": len(found_ids) or int(checkpoint.get("found", 0))})
 
-    result = {"found": len(found_ids)}
+    result = {"found": found_count}
     if fatal is not None:
         ctx.add_error(fatal.code, fatal.message)
-        status = JobStatus.PARTIAL if found_ids else JobStatus.FAILED
+        status = JobStatus.PARTIAL if found_count else JobStatus.FAILED
         return JobOutcome(status, result, fatal.code, fatal.message)
-    if ctx.errors and not found_ids and not ctx.counters.get("queries_ok"):
+    if ctx.errors and not found_count and not ctx.counters.get("queries_ok"):
         first = ctx.errors[0]
         return JobOutcome(JobStatus.FAILED, result, first.get("code"), first.get("message"))
     provider_errors = [e for e in ctx.errors if e.get("query")]
@@ -268,6 +294,8 @@ async def _run_query(
                     found_ids,
                     to_audit,
                 )
+                ctx.checkpoint["found_ids"] = sorted(found_ids)
+                ctx.checkpoint["to_audit"] = list(to_audit)
                 await ctx.flush()
                 if len(found_ids) >= req.max_results:
                     break
@@ -361,18 +389,26 @@ async def audit_businesses(
     *,
     force: bool,
 ) -> None:
+    """Audit concurrently. Once the run is out of time no new audit starts; the ones
+    not started stay in ``ctx.checkpoint["to_audit"]`` and the job yields."""
     auditor = build_auditor(runtime.audit)
     semaphore = asyncio.Semaphore(runtime.audit.max_concurrent)
     lock = asyncio.Lock()
+    done: set[int] = set()
+
+    def remember_remaining() -> None:
+        ctx.checkpoint["to_audit"] = [i for i in business_ids if i not in done]
 
     async def one(business_id: int) -> None:
         async with semaphore:
-            if await ctx.cancelled():
+            # Each run audits at least one batch, so a short time budget still makes progress.
+            if (done and ctx.out_of_time()) or await ctx.cancelled():
                 return
             async with ctx.sessionmaker() as session:
                 business = await session.get(Business, business_id)
                 if business is None or not needs_audit(business, runtime.audit.cache_days, force=force):
                     async with lock:
+                        done.add(business_id)
                         ctx.processed += 1
                         ctx.incr("audit_cached")
                     return
@@ -403,23 +439,30 @@ async def audit_businesses(
                     )
             finally:
                 async with lock:
+                    done.add(business_id)
                     ctx.processed += 1
+                    remember_remaining()
                     await ctx.flush()
 
     try:
         await asyncio.gather(*(one(bid) for bid in business_ids))
     finally:
         await auditor.fetcher.aclose()
+    remember_remaining()
     await ctx.check_cancelled()
+    if ctx.checkpoint["to_audit"]:
+        raise JobYield()
 
 
 async def run_audit_job(ctx: JobContext) -> JobOutcome:
-    ids = [int(i) for i in ctx.params.get("business_ids", [])]
+    ids = [int(i) for i in ctx.checkpoint.get("to_audit", ctx.params.get("business_ids", []))]
     force = bool(ctx.params.get("force", True))
     async with ctx.sessionmaker() as session:
         runtime = await load_settings(session, use_cache=False)
         niches = await load_niches(session)
-    ctx.total = len(ids)
+    if not ctx.resumed:
+        ctx.total = len(ids)
+    ctx.checkpoint = {"to_audit": ids}
     await ctx.flush("auditing")
     try:
         await audit_businesses(ctx, ids, runtime, niches, force=force)
@@ -430,18 +473,22 @@ async def run_audit_job(ctx: JobContext) -> JobOutcome:
 
 async def run_rescore_job(ctx: JobContext) -> JobOutcome:
     ids: list[int] | None = ctx.params.get("business_ids")
+    after_id = int(ctx.checkpoint.get("after_id", 0))
     async with ctx.sessionmaker() as session:
         runtime = await load_settings(session, use_cache=False)
         niches = await load_niches(session)
-        query = select(Business.id).order_by(Business.id)
+        query = select(Business.id).where(Business.id > after_id).order_by(Business.id)
         if ids:
             query = query.where(Business.id.in_(ids))
         all_ids = list((await session.execute(query)).scalars())
-    ctx.total = len(all_ids)
+    if not ctx.resumed:
+        ctx.total = len(all_ids)
     await ctx.flush("scoring")
     for start in range(0, len(all_ids), 200):
         if await ctx.cancelled():
             return JobOutcome(JobStatus.CANCELLED)
+        if start > 0:
+            ctx.check_time()
         batch = all_ids[start : start + 200]
         async with ctx.sessionmaker() as session:
             businesses = (
@@ -451,5 +498,6 @@ async def run_rescore_job(ctx: JobContext) -> JobOutcome:
                 await rescore_business(session, business, runtime, niches)
             await session.commit()
         ctx.processed += len(batch)
+        ctx.checkpoint = {"after_id": batch[-1]}
         await ctx.flush()
     return JobOutcome(JobStatus.COMPLETED)

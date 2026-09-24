@@ -6,6 +6,7 @@ reverse proxy) in front as well.
 
 from __future__ import annotations
 
+import os
 import time
 from collections import defaultdict, deque
 
@@ -36,6 +37,11 @@ class SlidingWindowLimiter:
 
 
 def client_key(request: Request) -> str:
+    if os.environ.get("VERCEL"):
+        # Vercel's edge sets these (and overwrites client-supplied values).
+        forwarded = request.headers.get("x-real-ip") or request.headers.get("x-forwarded-for", "")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
 
 
@@ -54,4 +60,5 @@ search_limiter = SlidingWindowLimiter(limit=20, window_seconds=60)
 audit_limiter = SlidingWindowLimiter(limit=120, window_seconds=60)
 login_limiter = SlidingWindowLimiter(limit=10, window_seconds=60)
 import_limiter = SlidingWindowLimiter(limit=20, window_seconds=60)
-ALL_LIMITERS = (search_limiter, audit_limiter, login_limiter, import_limiter)
+worker_limiter = SlidingWindowLimiter(limit=60, window_seconds=60)
+ALL_LIMITERS = (search_limiter, audit_limiter, login_limiter, import_limiter, worker_limiter)

@@ -46,6 +46,7 @@ async def meta(_user: CurrentUser) -> MetaOut:
         version=settings.app_version,
         environment=settings.environment,
         auth_mode=settings.auth_mode,
+        on_demand_worker=settings.on_demand_worker,
         provider=ProviderStatusOut(**provider_status(settings)),
         pagespeed_configured=settings.pagespeed_api_key is not None,
         cities=CITIES,

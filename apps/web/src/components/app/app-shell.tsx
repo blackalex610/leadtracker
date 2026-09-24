@@ -8,7 +8,7 @@ import {
   SettingsIcon,
   SunIcon,
 } from "lucide-react";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { NavLink, Outlet } from "react-router";
 
 import { StartCallingDialog } from "@/components/app/start-calling-dialog";
@@ -19,6 +19,7 @@ import { useAuth } from "@/lib/auth";
 import { useMeta } from "@/lib/queries";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
+import { enableWorkerPump } from "@/lib/worker-pump";
 
 const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboardIcon, end: true },
@@ -40,6 +41,13 @@ export function AppShell() {
   const { user, authMode, logout } = useAuth();
   const meta = useMeta();
   const demo = meta.data?.provider.demo_mode;
+  const onDemandWorker = meta.data?.on_demand_worker ?? false;
+
+  // Serverless hosting: this tab drives queued background jobs (see lib/worker-pump.ts).
+  useEffect(() => {
+    enableWorkerPump(onDemandWorker);
+    return () => enableWorkerPump(false);
+  }, [onDemandWorker]);
 
   return (
     <div className="flex h-dvh flex-col md:flex-row">

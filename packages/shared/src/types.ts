@@ -65,6 +65,7 @@ export type ImportCommit = S["ImportCommit"];
 export type ImportResult = S["ImportResult"];
 
 export type Meta = S["MetaOut"];
+export type WorkerRun = S["WorkerRunOut"];
 export type User = S["UserOut"];
 export type MeResponse = S["MeResponse"];
 

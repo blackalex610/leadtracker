@@ -111,9 +111,12 @@ full, commented list is in [`.env.example`](.env.example):
 | `WEBSITE_AUDIT_TIMEOUT` | `10000` | Per-request timeout (ms) |
 | `MAX_CONCURRENT_AUDITS` | `5` | Parallel website audits |
 | `PAGESPEED_API_KEY` | — | Optional Lighthouse data (PageSpeed Insights) |
-| `RUN_WORKER` | `true` | Run jobs inside the API process |
+| `RUN_WORKER` | `true` (`false` on serverless) | Run jobs inside the API process |
 | `AUTH_MODE` | `none` | `none` or `token` (per-user access tokens) |
 | `SECRET_KEY` | — | ≥32 random chars; required when `AUTH_MODE=token` |
+| `ADMIN_TOKEN` / `ADMIN_EMAIL` | — / `admin@leadtracker.local` | Bootstrap admin who signs in with `ADMIN_TOKEN` (≥24 chars) — for hosts without a shell (Vercel) |
+| `SERVERLESS` | auto (`true` on Vercel) | No resident worker: jobs run in resumable slices (`WORKER_RUN_BUDGET_SECONDS`, default 40) |
+| `CRON_SECRET` | — | Protects the daily `/api/worker/cron` maintenance call (Vercel Cron) |
 | `CORS_ORIGINS` | `http://localhost:5173,…` | Only needed for cross-origin frontends |
 | `VITE_API_BASE_URL` | empty | Frontend build: empty = same-origin `/api` |
 
@@ -188,8 +191,45 @@ recreates its schema): `TEST_DATABASE_URL=postgresql+asyncpg://…/leadtracker_t
 
 ## 7. Production deployment
 
-Recommended topology: **frontend on Vercel (or nginx)**, **API + worker as
-containers** (Render, Fly.io, Railway, a VPS…), **managed PostgreSQL**.
+### Vercel (all-in-one, quickest)
+
+One Vercel project serves the web app as static files and the whole FastAPI backend
+as a Python function (`api/index.py`, config in [`vercel.json`](vercel.json)); the
+database is Neon Postgres from the Vercel Marketplace.
+
+1. **Import** the GitHub repository at <https://vercel.com/new>. Keep the **Root
+   Directory at the repository root** (`./`) and the framework preset **Other** —
+   `vercel.json` sets the build.
+2. **Database:** Project → *Storage* → *Create* → **Neon** (Postgres), region
+   **Frankfurt (eu-central-1)** (the function runs in `fra1`), connect it to all
+   environments. It adds `DATABASE_URL` / `DATABASE_URL_UNPOOLED` automatically.
+3. **Environment variables** (Project → Settings → Environment Variables):
+
+   | Name | Value |
+   |---|---|
+   | `AUTH_MODE` | `token` |
+   | `SECRET_KEY` | 40+ random characters (never typed again) |
+   | `ADMIN_TOKEN` | the password you will sign in with (24+ characters) |
+   | `ADMIN_EMAIL` | your e-mail (optional) |
+   | `PROVIDER_API_KEY` | Google Places API (New) key |
+   | `CRON_SECRET` | 32+ random characters (optional, enables the daily cron) |
+
+4. **Deploy** (or *Redeploy* after changing variables). Open the URL and sign in with
+   `ADMIN_TOKEN`. The first request creates the database schema.
+
+How background work runs there: Vercel has no always-on process, so search jobs,
+audits and rescoring run in resumable ~40-second slices. The open app triggers the
+next slice (`POST /api/worker/run`) while a job is active, and a daily Vercel Cron
+picks up anything left over. A job therefore advances while someone has the app open;
+closing the tab pauses it and it resumes where it stopped. Configuration mistakes
+(no database, `AUTH_MODE=none` on a public URL, a short `SECRET_KEY`, no admin) are
+reported in the app instead of a crash. Vercel's Hobby plan is for non-commercial use;
+a sales team should use Pro. More in [`docs/deployment.md`](docs/deployment.md#vercel-all-in-one).
+
+### Containers
+
+Recommended topology for larger teams: **API + worker as containers** (Render,
+Fly.io, Railway, a VPS…), **managed PostgreSQL**, frontend on nginx or Vercel.
 
 ```bash
 # Backend image (API and worker share it)
@@ -204,13 +244,8 @@ docker run -e API_UPSTREAM=http://api:8000 -p 8080:80 leadtracker-web
 
 Full stack locally: `docker compose up --build` → http://localhost:8080.
 
-**Vercel:** set the project root to `apps/web` (config in `apps/web/vercel.json`).
-Add a rewrite so the browser talks to the API on the same origin (cookies stay
-first-party) — put it *before* the SPA fallback:
-
-```json
-{ "source": "/api/:path*", "destination": "https://YOUR-API-HOST/api/:path*" }
-```
+To host only the frontend on Vercel in front of container APIs, see
+[`docs/deployment.md`](docs/deployment.md#vercel-frontend-only).
 
 Production checklist:
 
@@ -304,7 +339,9 @@ verbatim in the UI; retryable ones back off exponentially.
 | `permission_denied: Places API (New) is not enabled` | Enable *Places API (New)* (not the legacy one) in the key's project. |
 | `invalid_api_key` | Wrong key, or key restricted to other APIs. |
 | `quota_exceeded` / `rate_limited` | Raise quotas in Google Cloud or lower `provider_requests_per_second`. |
-| Jobs stay "Waiting for a worker" | `RUN_WORKER=true` on the API, or run `python -m app.worker`. Stuck jobs are re-queued after 3 minutes. |
+| Jobs stay "Waiting for a worker" | `RUN_WORKER=true` on the API, or run `python -m app.worker`. Stuck jobs are re-queued after 3 minutes. On Vercel, keep the app open while a job runs (it drives the job). |
+| Vercel: "setup_required" message | The message names the missing setting (database, `AUTH_MODE`, `SECRET_KEY`, `ADMIN_TOKEN`); fix it and redeploy. |
+| Vercel: `maxDuration` error on deploy | Enable Fluid compute (Project → Settings → Functions), or lower `maxDuration` in `vercel.json` to your plan's limit. |
 | Audits all fail with `dns_failure`/`connection_failed` | The API host needs outbound HTTP(S). Audits deliberately ignore `HTTP(S)_PROXY` (IP pinning for SSRF safety). |
 | Cyrillic garbled in Excel | Keep "Include UTF-8 BOM" on; use `;` as delimiter for Bulgarian Excel (Settings → CSV). |
 | `SECRET_KEY must be … 32 characters` | Generate one: `python -c "import secrets; print(secrets.token_urlsafe(48))"`. |

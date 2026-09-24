@@ -2557,6 +2557,28 @@
           }
         }
       }
+    },
+    "/api/worker/run": {
+      "post": {
+        "tags": [
+          "worker"
+        ],
+        "summary": "Run Jobs",
+        "description": "Process queued jobs for up to WORKER_RUN_BUDGET_SECONDS (serverless mode only;\notherwise a resident worker does the work and this just reports the queue).",
+        "operationId": "run_jobs_api_worker_run_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerRunOut"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5823,6 +5845,10 @@
             "type": "string",
             "title": "Auth Mode"
           },
+          "on_demand_worker": {
+            "type": "boolean",
+            "title": "On Demand Worker"
+          },
           "provider": {
             "$ref": "#/components/schemas/ProviderStatusOut"
           },
@@ -5890,6 +5916,7 @@
           "version",
           "environment",
           "auth_mode",
+          "on_demand_worker",
           "provider",
           "pagespeed_configured",
           "cities",
@@ -7885,6 +7912,34 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WorkerRunOut": {
+        "properties": {
+          "ran": {
+            "type": "integer",
+            "title": "Ran"
+          },
+          "queued": {
+            "type": "integer",
+            "title": "Queued"
+          },
+          "running": {
+            "type": "integer",
+            "title": "Running"
+          },
+          "on_demand": {
+            "type": "boolean",
+            "title": "On Demand"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ran",
+          "queued",
+          "running",
+          "on_demand"
+        ],
+        "title": "WorkerRunOut"
       }
     }
   }

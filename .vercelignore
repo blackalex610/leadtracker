@@ -1,0 +1,10 @@
+# Not needed to build the web app or the Python function.
+.github
+docker
+docs
+apps/api/tests
+apps/api/.venv
+apps/web/playwright-report
+apps/web/test-results
+**/__pycache__
+**/node_modules

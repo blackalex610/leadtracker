@@ -21,7 +21,16 @@ from app.models import Business, ImportBatch
 from app.providers.base import ProviderError
 from app.services.provider_gateway import purge_expired_cache
 from app.services.search import run_audit_job, run_rescore_job, run_search_job
-from app.worker.queue import JobContext, JobOutcome, claim_next, finish, heartbeat, recover_stale
+from app.worker.queue import (
+    JobContext,
+    JobOutcome,
+    JobYield,
+    claim_next,
+    finish,
+    heartbeat,
+    recover_stale,
+    release,
+)
 
 log = get_logger(__name__)
 
@@ -129,15 +138,18 @@ class Worker:
                 with contextlib.suppress(TimeoutError):
                     await asyncio.wait_for(self._stop.wait(), timeout=self.poll_interval)
 
-    async def run_once(self) -> bool:
-        """Claim and run a single job. Returns False when the queue is empty."""
+    async def run_once(self, *, deadline: float | None = None) -> bool:
+        """Claim and run a single job. Returns False when the queue is empty.
+
+        With a ``deadline`` (``time.monotonic()``) the job stops at its next safe point
+        after the deadline and is re-queued with a checkpoint."""
         async with self.sessionmaker() as session:
             job = await claim_next(session, self.worker_id)
         if job is None:
             return False
-        ctx = JobContext(job, self.sessionmaker)
+        ctx = JobContext(job, self.sessionmaker, deadline=deadline)
         handler = HANDLERS.get(job.kind)
-        log.info("job_started", job_id=job.id, kind=job.kind, attempt=job.attempts)
+        log.info("job_started", job_id=job.id, kind=job.kind, attempt=job.attempts, resumed=ctx.resumed)
         beat = asyncio.create_task(self._heartbeat(job.id))
         try:
             if handler is None:
@@ -146,6 +158,11 @@ class Worker:
                 )
             else:
                 outcome = await handler(ctx)
+        except JobYield:
+            beat.cancel()
+            await release(self.sessionmaker, ctx)
+            log.info("job_yielded", job_id=job.id, kind=job.kind, processed=ctx.processed, total=ctx.total)
+            return True
         except ProviderError as exc:
             outcome = JobOutcome(JobStatus.FAILED, error_code=exc.code, error_message=exc.message)
         except Exception as exc:
