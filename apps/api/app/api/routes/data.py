@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
@@ -14,6 +14,7 @@ from app.core.enums import JobKind
 from app.core.ratelimit import import_limiter, rate_limit
 from app.log import get_logger
 from app.models import Business, ImportBatch
+from app.schemas.dashboard import DashboardOut
 from app.schemas.misc import ImportCommit, ImportPreview, ImportPreviewRow, ImportResult
 from app.services import csv_import
 from app.services.csv_export import export_rows
@@ -28,10 +29,10 @@ router = APIRouter()
 log = get_logger(__name__)
 
 
-@router.get("/dashboard", tags=["dashboard"])
-async def get_dashboard(session: SessionDep, _user: CurrentUser) -> dict[str, Any]:
+@router.get("/dashboard", response_model=DashboardOut, tags=["dashboard"])
+async def get_dashboard(session: SessionDep, _user: CurrentUser) -> DashboardOut:
     runtime = await load_settings(session)
-    return await dashboard(session, runtime)
+    return DashboardOut.model_validate(await dashboard(session, runtime))
 
 
 @router.get("/export", tags=["export"], response_class=StreamingResponse)

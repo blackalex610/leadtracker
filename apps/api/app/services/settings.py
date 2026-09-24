@@ -11,7 +11,7 @@ import time
 from typing import Any, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,12 +22,16 @@ from app.models import AppSetting
 from app.scoring.config import ScoringConfig
 
 
+class SettingsModel(BaseModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
+
+
 def _hhmm(value: str) -> str:
     parse_hhmm(value)
     return value.strip().zfill(5)
 
 
-class GeneralSettings(BaseModel):
+class GeneralSettings(SettingsModel):
     default_country: str = Field(
         default_factory=lambda: get_settings().default_country, min_length=2, max_length=2
     )
@@ -51,7 +55,7 @@ class GeneralSettings(BaseModel):
         return v
 
 
-class CallingSettings(BaseModel):
+class CallingSettings(SettingsModel):
     window_start: str = "19:00"
     window_end: str = "21:00"
     recall_cooldown_hours: int = Field(default=20, ge=0, le=24 * 30)
@@ -64,7 +68,7 @@ class CallingSettings(BaseModel):
         return _hhmm(v)
 
 
-class AuditSettings(BaseModel):
+class AuditSettings(SettingsModel):
     timeout_ms: int = Field(default_factory=lambda: get_settings().website_audit_timeout, ge=1000, le=60000)
     max_pages: int = Field(default=4, ge=1, le=10)
     max_concurrent: int = Field(default_factory=lambda: get_settings().max_concurrent_audits, ge=1, le=20)
@@ -78,7 +82,7 @@ class AuditSettings(BaseModel):
     pagespeed_enabled: bool = False
 
 
-class SearchSettings(BaseModel):
+class SearchSettings(SettingsModel):
     default_max_results: int = Field(default=60, ge=1, le=1000)
     max_results_limit: int = Field(default=500, ge=1, le=2000)
     provider_concurrency: int = Field(default=2, ge=1, le=10)
@@ -87,17 +91,17 @@ class SearchSettings(BaseModel):
     audit_after_search: bool = True
 
 
-class CsvSettings(BaseModel):
+class CsvSettings(SettingsModel):
     delimiter: Literal[",", ";", "\t"] = ","
     include_bom: bool = True
 
 
-class SkuPrice(BaseModel):
+class SkuPrice(SettingsModel):
     price_per_1000: float = Field(ge=0)
     free_per_month: int = Field(default=0, ge=0)
 
 
-class PricingSettings(BaseModel):
+class PricingSettings(SettingsModel):
     currency: str = DEFAULT_PRICING_CURRENCY
     display_currency: str = "EUR"
     exchange_rate: float = Field(default=0.86, gt=0, description="Display-currency units per 1 pricing unit")
@@ -106,7 +110,7 @@ class PricingSettings(BaseModel):
     )
 
 
-class RuntimeSettings(BaseModel):
+class RuntimeSettings(SettingsModel):
     general: GeneralSettings = Field(default_factory=GeneralSettings)
     calling: CallingSettings = Field(default_factory=CallingSettings)
     audit: AuditSettings = Field(default_factory=AuditSettings)
