@@ -697,6 +697,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/worker/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run Jobs
+         * @description Process queued jobs for up to WORKER_RUN_BUDGET_SECONDS (serverless mode only;
+         *     otherwise a resident worker does the work and this just reports the queue).
+         */
+        post: operations["run_jobs_api_worker_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1675,6 +1696,8 @@ export interface components {
             environment: string;
             /** Auth Mode */
             auth_mode: string;
+            /** On Demand Worker */
+            on_demand_worker: boolean;
             provider: components["schemas"]["ProviderStatusOut"];
             /** Pagespeed Configured */
             pagespeed_configured: boolean;
@@ -2403,6 +2426,17 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** WorkerRunOut */
+        WorkerRunOut: {
+            /** Ran */
+            ran: number;
+            /** Queued */
+            queued: number;
+            /** Running */
+            running: number;
+            /** On Demand */
+            on_demand: boolean;
+        };
     };
     responses: never;
     parameters: never;
@@ -2491,6 +2525,7 @@ export type SchemaUsageOut = components['schemas']['UsageOut'];
 export type SchemaUserOut = components['schemas']['UserOut'];
 export type SchemaUserRef = components['schemas']['UserRef'];
 export type SchemaValidationError = components['schemas']['ValidationError'];
+export type SchemaWorkerRunOut = components['schemas']['WorkerRunOut'];
 export type $defs = Record<string, never>;
 export interface operations {
     health_api_health_get: {
@@ -3917,6 +3952,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_jobs_api_worker_run_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerRunOut"];
                 };
             };
         };

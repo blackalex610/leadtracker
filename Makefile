@@ -2,7 +2,7 @@
 API := apps/api
 UV := cd $(API) && uv run
 
-.PHONY: help install db db-stop migrate api worker web demo seed-demo test test-api test-web e2e lint typecheck build gen-api check
+.PHONY: help install db db-stop migrate api worker web demo seed-demo test test-api test-web e2e lint typecheck build gen-api vercel-requirements check
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -58,6 +58,9 @@ typecheck: ## Type-check backend (mypy --strict) and frontend (tsc)
 
 build: ## Production build of the frontend
 	pnpm build
+
+vercel-requirements: ## Regenerate api/requirements.txt (Vercel's Python function) from uv.lock
+	cd $(API) && uv export --frozen --no-dev --no-hashes --no-emit-project --no-header -o ../../api/requirements.txt
 
 gen-api: ## Regenerate TypeScript API types from the FastAPI schema
 	pnpm gen:api

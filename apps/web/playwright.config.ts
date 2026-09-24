@@ -9,6 +9,9 @@ import { defineConfig, devices } from "@playwright/test";
  */
 const databaseUrl =
   process.env.E2E_DATABASE_URL ?? "postgresql+asyncpg://leadtracker:leadtracker@localhost:5432/leadtracker_e2e";
+// E2E_SERVERLESS=1 runs the API like on Vercel: no resident worker, jobs advance only
+// through the browser's POST /api/worker/run calls.
+const serverless = process.env.E2E_SERVERLESS === "1";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -35,7 +38,9 @@ export default defineConfig({
         DATABASE_URL: databaseUrl,
         DEMO_MODE: "true",
         AUTH_MODE: "none",
-        RUN_WORKER: "true",
+        RUN_WORKER: serverless ? "false" : "true",
+        SERVERLESS: serverless ? "true" : "false",
+        WORKER_RUN_BUDGET_SECONDS: "10",
         CORS_ORIGINS: "http://127.0.0.1:5174",
         LOG_LEVEL: "WARNING",
       },

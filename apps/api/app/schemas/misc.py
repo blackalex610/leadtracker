@@ -216,10 +216,18 @@ class ProviderStatusOut(Schema):
     field_tier: str | None
 
 
+class WorkerRunOut(Schema):
+    ran: int
+    queued: int
+    running: int
+    on_demand: bool
+
+
 class MetaOut(Schema):
     version: str
     environment: str
     auth_mode: str
+    on_demand_worker: bool
     provider: ProviderStatusOut
     pagespeed_configured: bool
     cities: dict[str, list[str]]

@@ -25,6 +25,8 @@ class Job(Base):
     progress_processed: Mapped[int] = mapped_column(Integer, default=0)
     counters: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     errors: Mapped[list[Any]] = mapped_column(JSONB, default=list)
+    # Where a time-boxed (serverless) run stopped, so the next run resumes instead of restarting.
+    checkpoint: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     error_code: Mapped[str | None] = mapped_column(String(40))
     error_message: Mapped[str | None] = mapped_column(Text)
     cancel_requested: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")

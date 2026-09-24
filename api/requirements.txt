@@ -1,0 +1,99 @@
+alembic==1.20.0
+    # via leadtracker-api
+annotated-doc==0.0.5
+    # via fastapi
+annotated-types==0.8.0
+    # via pydantic
+anyio==4.15.1
+    # via
+    #   httpx
+    #   starlette
+    #   watchfiles
+asyncpg==0.31.0
+    # via leadtracker-api
+certifi==2026.7.22
+    # via
+    #   httpcore
+    #   httpx
+click==8.5.0
+    # via uvicorn
+fastapi==0.141.1
+    # via leadtracker-api
+greenlet==3.5.6
+    # via sqlalchemy
+h11==0.16.0
+    # via
+    #   httpcore
+    #   uvicorn
+httpcore==1.0.9
+    # via httpx
+httptools==0.8.0
+    # via uvicorn
+httpx==0.28.1
+    # via leadtracker-api
+idna==3.20
+    # via
+    #   anyio
+    #   httpx
+itsdangerous==2.2.0
+    # via leadtracker-api
+mako==1.4.3
+    # via alembic
+markupsafe==3.0.3
+    # via mako
+phonenumbers==9.0.40
+    # via leadtracker-api
+pydantic==2.13.5
+    # via
+    #   fastapi
+    #   leadtracker-api
+    #   pydantic-settings
+pydantic-core==2.46.5
+    # via pydantic
+pydantic-settings==2.15.0
+    # via leadtracker-api
+python-dotenv==1.2.3
+    # via
+    #   pydantic-settings
+    #   uvicorn
+python-multipart==0.0.32
+    # via leadtracker-api
+pyyaml==6.0.3
+    # via uvicorn
+rapidfuzz==3.14.6
+    # via leadtracker-api
+selectolax==0.4.12
+    # via leadtracker-api
+sqlalchemy==2.0.54
+    # via
+    #   alembic
+    #   leadtracker-api
+starlette==1.7.0
+    # via fastapi
+structlog==26.1.0
+    # via leadtracker-api
+typing-extensions==4.16.0
+    # via
+    #   alembic
+    #   anyio
+    #   fastapi
+    #   pydantic
+    #   pydantic-core
+    #   sqlalchemy
+    #   starlette
+    #   typing-inspection
+typing-inspection==0.4.4
+    # via
+    #   fastapi
+    #   pydantic
+    #   pydantic-settings
+tzdata==2026.4
+    # via leadtracker-api
+uvicorn==0.53.0
+    # via leadtracker-api
+uvloop==0.22.1 ; platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'
+    # via uvicorn
+watchfiles==1.3.0
+    # via uvicorn
+websockets==17.1
+    # via uvicorn

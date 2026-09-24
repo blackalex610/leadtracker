@@ -14,14 +14,13 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
 
-from app.api.deps import ensure_default_user
-from app.api.routes import admin, calling, data, leads, search, system
+from app.api.routes import admin, calling, data, leads, search, system, worker
 from app.config import get_settings
 from app.db import dispose_engine, get_sessionmaker
-from app.log import configure_logging, get_logger, register_secret
+from app.log import get_logger
 from app.providers.base import ProviderError, ProviderNotConfiguredError
 from app.providers.registry import close_provider
-from app.services.presets import seed_builtin_presets
+from app.startup import configure_process, ensure_ready
 from app.worker.runner import Worker
 
 log = get_logger("app")
@@ -81,6 +80,25 @@ class OriginCheckMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
+class ServerlessReadyMiddleware(BaseHTTPMiddleware):
+    """Serverless instances have no reliable startup hook: initialise on the first API
+    request and explain configuration problems instead of failing obscurely."""
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        path = request.url.path
+        if path.startswith("/api") and path != "/api/health":
+            try:
+                problems = await ensure_ready()
+            except Exception as exc:
+                log.exception("startup_failed", error=type(exc).__name__)
+                return _error(
+                    503, "startup_failed", f"The server could not initialise ({type(exc).__name__}).", {}
+                )
+            if problems:
+                return _error(503, "setup_required", " ".join(problems), {"problems": problems})
+        return await call_next(request)
+
+
 def _error(status_code: int, code: str, message: str, extra: dict[str, Any] | None = None) -> JSONResponse:
     return JSONResponse(
         status_code=status_code, content={"detail": {"code": code, "message": message, **(extra or {})}}
@@ -90,12 +108,7 @@ def _error(status_code: int, code: str, message: str, extra: dict[str, Any] | No
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
-    configure_logging(settings.log_level, settings.use_json_logs)
-    if settings.provider_api_key:
-        register_secret(settings.provider_api_key.get_secret_value())
-    if settings.pagespeed_api_key:
-        register_secret(settings.pagespeed_api_key.get_secret_value())
-    register_secret(settings.secret_key.get_secret_value())
+    configure_process(settings)
     if settings.is_production and settings.auth_mode == "none":
         log.warning(
             "auth_disabled_in_production",
@@ -105,12 +118,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         log.warning("demo_mode_enabled", message="DEMO_MODE=true: searches return synthetic businesses.")
 
     sessionmaker = get_sessionmaker()
-    async with sessionmaker() as session:
-        await seed_builtin_presets(session)
-        await ensure_default_user(session)
+    if not settings.serverless:
+        await ensure_ready()
 
     worker: Worker | None = None
-    if settings.run_worker:
+    if settings.embedded_worker:
         worker = Worker(
             sessionmaker,
             concurrency=settings.worker_concurrency,
@@ -124,6 +136,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         demo_mode=settings.demo_mode,
         provider_configured=settings.provider_configured,
         auth_mode=settings.auth_mode,
+        serverless=settings.serverless,
     )
     try:
         yield
@@ -145,6 +158,9 @@ def create_app(*, with_lifespan: bool = True) -> FastAPI:
         redoc_url="/api/redoc",
         openapi_url="/api/openapi.json",
     )
+    if settings.serverless:
+        configure_process(settings)
+        app.add_middleware(ServerlessReadyMiddleware)
     app.add_middleware(OriginCheckMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(
@@ -187,7 +203,15 @@ def create_app(*, with_lifespan: bool = True) -> FastAPI:
         log.exception("unhandled_error", error=type(exc).__name__)
         return _error(500, "internal_error", "Unexpected server error")
 
-    for router in (system.router, search.router, leads.router, calling.router, data.router, admin.router):
+    for router in (
+        system.router,
+        search.router,
+        leads.router,
+        calling.router,
+        data.router,
+        admin.router,
+        worker.router,
+    ):
         app.include_router(router, prefix="/api")
     return app
 

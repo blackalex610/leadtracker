@@ -33,6 +33,11 @@ A search job:
    between pages/audits. Outcome: `completed`, `partial` (some queries failed),
    `failed` (nothing usable, error code shown), `cancelled`.
 
+On serverless hosting (Vercel) there is no resident worker: `POST /api/worker/run`
+runs queued jobs in time-boxed slices; a job that is still running when the slice ends
+stops at a safe point, stores `jobs.checkpoint` and is re-queued, and the next slice
+resumes it (see `docs/deployment.md`).
+
 Workers heartbeat every 15 s; a job whose heartbeat is older than 3 minutes is re-queued
 (or failed after `max_attempts`). A maintenance loop (advisory-locked) purges expired cache,
 clears old lat/lng and stale import batches.

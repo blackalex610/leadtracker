@@ -35,6 +35,7 @@ import type {
   SuppressionEntry,
   Usage,
   User,
+  WorkerRun,
 } from "@leadtracker/shared";
 
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
@@ -108,6 +109,20 @@ async function request<T>(
   return (await response.json()) as T;
 }
 
+let onJobQueued: (() => void) | null = null;
+
+/** Called after a request that queues a background job (see lib/worker-pump.ts). */
+export function setJobQueuedListener(listener: (() => void) | null): void {
+  onJobQueued = listener;
+}
+
+function queuesJob<T>(promise: Promise<T>): Promise<T> {
+  return promise.then((result) => {
+    onJobQueued?.();
+    return result;
+  });
+}
+
 const get = <T,>(path: string, query?: Query, signal?: AbortSignal) => request<T>("GET", path, { query, signal });
 const post = <T,>(path: string, body?: unknown) => request<T>("POST", path, { body: body ?? {} });
 const patch = <T,>(path: string, body: unknown) => request<T>("PATCH", path, { body });
@@ -117,6 +132,7 @@ export type SettingsPatch = { [K in keyof RuntimeSettings]?: Record<string, unkn
 
 export const api = {
   meta: () => get<Meta>("/api/meta"),
+  runWorker: () => post<WorkerRun>("/api/worker/run"),
   me: () => get<MeResponse>("/api/auth/me"),
   login: (token: string) => post<MeResponse>("/api/auth/login", { token }),
   logout: () => post<{ ok: boolean }>("/api/auth/logout"),
@@ -129,8 +145,8 @@ export const api = {
   lead: (id: number) => get<LeadDetail>(`/api/leads/${id}`),
   updateLead: (id: number, body: LeadUpdate) => patch<LeadDetail>(`/api/leads/${id}`, body),
   bulkUpdate: (body: BulkLeadUpdate) => post<BulkResult>("/api/leads/bulk", body),
-  auditLead: (id: number) => post<JobRef>(`/api/leads/${id}/audit`),
-  auditMany: (ids: number[]) => post<JobRef>("/api/leads/audit", { ids, force: true }),
+  auditLead: (id: number) => queuesJob(post<JobRef>(`/api/leads/${id}/audit`)),
+  auditMany: (ids: number[]) => queuesJob(post<JobRef>("/api/leads/audit", { ids, force: true })),
   rescoreLead: (id: number) => post<LeadDetail>(`/api/leads/${id}/rescore`),
   refreshLead: (id: number) => post<LeadDetail>(`/api/leads/${id}/refresh`),
   recordCall: (id: number, body: CallCreate) => post<CallResult>(`/api/leads/${id}/call`, body),
@@ -138,11 +154,11 @@ export const api = {
   exportUrl: (query: Omit<LeadListQuery, "page" | "page_size">) => apiUrl("/api/export", query as Query),
 
   estimateSearch: (body: SearchRequest) => post<SearchEstimate>("/api/search/estimate", body),
-  createSearch: (body: SearchRequest) => post<JobOut>("/api/search", body),
+  createSearch: (body: SearchRequest) => queuesJob(post<JobOut>("/api/search", body)),
   searchJobs: (page = 1, pageSize = 20) => get<JobPage>("/api/search-jobs", { page, page_size: pageSize }),
   searchJob: (id: number) => get<SearchJobDetail>(`/api/search-jobs/${id}`),
   cancelJob: (id: number) => post<JobOut>(`/api/search-jobs/${id}/cancel`),
-  retryJob: (id: number) => post<JobOut>(`/api/search-jobs/${id}/retry`),
+  retryJob: (id: number) => queuesJob(post<JobOut>(`/api/search-jobs/${id}/retry`)),
   job: (id: number) => get<JobOut>(`/api/jobs/${id}`),
 
   callingPreview: (filters: Partial<CallingFilters>) => post<CallingPreview>("/api/calling-sessions/preview", filters),
@@ -155,7 +171,7 @@ export const api = {
 
   settings: () => get<SettingsOut>("/api/settings"),
   updateSettings: (body: SettingsPatch) => patch<SettingsOut>("/api/settings", body),
-  rescoreAll: () => post<JobRef>("/api/settings/rescore"),
+  rescoreAll: () => queuesJob(post<JobRef>("/api/settings/rescore")),
   usage: () => get<Usage>("/api/usage"),
 
   presets: () => get<Preset[]>("/api/presets"),
@@ -174,7 +190,7 @@ export const api = {
     return request<ImportPreview>("POST", "/api/import/preview", { form });
   },
   importRemap: (body: ImportCommit) => post<ImportPreview>("/api/import/remap", body),
-  importCommit: (body: ImportCommit) => post<ImportResult>("/api/import", body),
+  importCommit: (body: ImportCommit) => queuesJob(post<ImportResult>("/api/import", body)),
 };
 
 export function errorMessage(error: unknown): string {

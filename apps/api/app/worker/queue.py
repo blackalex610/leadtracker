@@ -7,6 +7,7 @@ worker died are re-queued (or failed after ``max_attempts``).
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -113,10 +114,21 @@ class JobCancelled(Exception):
     pass
 
 
+class JobYield(Exception):
+    """The run's time budget is spent; the job goes back to the queue and resumes
+    from ``JobContext.checkpoint`` on its next run."""
+
+
 class JobContext:
     """Handle given to job handlers for progress reporting and cancellation."""
 
-    def __init__(self, job: Job, sessionmaker: async_sessionmaker[AsyncSession]) -> None:
+    def __init__(
+        self,
+        job: Job,
+        sessionmaker: async_sessionmaker[AsyncSession],
+        *,
+        deadline: float | None = None,
+    ) -> None:
         self.job_id = job.id
         self.kind = job.kind
         self.params: dict[str, Any] = dict(job.params or {})
@@ -127,6 +139,16 @@ class JobContext:
         self.processed = job.progress_processed or 0
         self.total = job.progress_total or 0
         self.stage = job.stage or "starting"
+        self.checkpoint: dict[str, Any] = dict(job.checkpoint or {})
+        self.resumed = bool(job.checkpoint)
+        self.deadline = deadline  # time.monotonic() value; None = no time limit
+
+    def out_of_time(self) -> bool:
+        return self.deadline is not None and time.monotonic() >= self.deadline
+
+    def check_time(self) -> None:
+        if self.out_of_time():
+            raise JobYield()
 
     def incr(self, key: str, amount: int = 1) -> None:
         self.counters[key] = int(self.counters.get(key, 0)) + amount
@@ -148,6 +170,7 @@ class JobContext:
                     progress_total=self.total,
                     counters=self.counters,
                     errors=self.errors,
+                    checkpoint=self.checkpoint or None,
                     heartbeat_at=datetime.now(UTC),
                 )
             )
@@ -171,6 +194,32 @@ async def heartbeat(sessionmaker: async_sessionmaker[AsyncSession], job_id: int)
         await session.commit()
 
 
+async def release(sessionmaker: async_sessionmaker[AsyncSession], ctx: JobContext) -> None:
+    """Put a job that yielded back in the queue (a yield does not count as an attempt)."""
+    now = datetime.now(UTC)
+    async with sessionmaker() as session:
+        job = await session.get(Job, ctx.job_id, with_for_update=True)
+        if job is None:
+            return
+        job.progress_processed = ctx.processed
+        job.progress_total = ctx.total
+        job.counters = ctx.counters
+        job.errors = ctx.errors
+        job.checkpoint = ctx.checkpoint or None
+        job.heartbeat_at = now
+        job.locked_by = None
+        if job.cancel_requested:
+            job.status = JobStatus.CANCELLED.value
+            job.stage = "cancelled"
+            job.finished_at = now
+        else:
+            job.status = JobStatus.QUEUED.value
+            job.attempts = max(0, (job.attempts or 1) - 1)
+            job.run_after = now
+            job.stage = ctx.stage
+        await session.commit()
+
+
 async def finish(
     sessionmaker: async_sessionmaker[AsyncSession], ctx: JobContext, outcome: JobOutcome
 ) -> None:
@@ -185,6 +234,7 @@ async def finish(
                 progress_total=ctx.total,
                 counters={**ctx.counters, **outcome.result},
                 errors=ctx.errors,
+                checkpoint=None,
                 error_code=outcome.error_code,
                 error_message=outcome.error_message,
                 finished_at=datetime.now(UTC),

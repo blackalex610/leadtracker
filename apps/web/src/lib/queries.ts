@@ -2,6 +2,7 @@ import { ACTIVE_JOB_STATUSES, type LeadListQuery } from "@leadtracker/shared";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
+import { kickWorker } from "@/lib/worker-pump";
 
 export const keys = {
   meta: ["meta"] as const,
@@ -34,7 +35,11 @@ export const useUsage = () => useQuery({ queryKey: keys.usage, queryFn: api.usag
 export const useSearchJobs = () =>
   useQuery({
     queryKey: keys.searchJobs,
-    queryFn: () => api.searchJobs(1, 30),
+    queryFn: async () => {
+      const page = await api.searchJobs(1, 30);
+      if (page.items.some((j) => ACTIVE_JOB_STATUSES.includes(j.status))) kickWorker();
+      return page;
+    },
     refetchInterval: (q) =>
       q.state.data?.items.some((j) => ACTIVE_JOB_STATUSES.includes(j.status)) ? 3000 : false,
   });
@@ -53,7 +58,11 @@ export function useLeads(query: LeadListQuery, options: { refetchInterval?: numb
 export function useLead(id: number) {
   return useQuery({
     queryKey: keys.lead(id),
-    queryFn: () => api.lead(id),
+    queryFn: async () => {
+      const lead = await api.lead(id);
+      if (lead.active_job_id) kickWorker();
+      return lead;
+    },
     enabled: Number.isFinite(id),
     // Poll while a website audit for this lead is running.
     refetchInterval: (q) => (q.state.data?.active_job_id ? 2500 : false),
@@ -63,7 +72,11 @@ export function useLead(id: number) {
 export function useSearchJob(id: number | null) {
   return useQuery({
     queryKey: keys.searchJob(id ?? 0),
-    queryFn: () => api.searchJob(id as number),
+    queryFn: async () => {
+      const job = await api.searchJob(id as number);
+      if (ACTIVE_JOB_STATUSES.includes(job.status)) kickWorker();
+      return job;
+    },
     enabled: id !== null,
     refetchInterval: (q) => (q.state.data && ACTIVE_JOB_STATUSES.includes(q.state.data.status) ? 1500 : false),
   });

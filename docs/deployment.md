@@ -2,6 +2,9 @@
 
 ## Components
 
+Two supported shapes: **Vercel all-in-one** (static web app + the FastAPI backend as one
+Python function + Neon Postgres) and **containers** (API, worker, web).
+
 | Component | Image / artifact | Scaling |
 |---|---|---|
 | API | `docker/api.Dockerfile` → `uvicorn app.main:app` | stateless, any number of replicas |
@@ -38,13 +41,63 @@ converted automatically to the `postgresql+asyncpg://…?ssl=require` form the a
 4. Open a shell in the API service and create users:
    `python -m app.cli create-user --email you@example.com --name "You" --admin`.
 
-## Vercel (frontend)
+## Vercel (all-in-one)
 
-* Root directory: `apps/web` (uses `apps/web/vercel.json`; installs the pnpm workspace).
-* Add the API rewrite **first** so the browser stays on one origin:
+`vercel.json` at the repository root builds the web app (`apps/web/dist`, served
+statically with an SPA fallback) and deploys `api/index.py` — the whole FastAPI app
+from `apps/api` — as one Python function behind `/api/*` (region `fra1`,
+`maxDuration` 300 s, which needs Fluid compute — the default for new projects).
+Python dependencies come from `api/requirements.txt`, generated from `apps/api/uv.lock`
+(`make vercel-requirements`; CI checks it is current).
+
+**Setup**
+
+1. Import the repository at <https://vercel.com/new>; Root Directory `./`, preset *Other*.
+2. Storage → Create → **Neon**, region Frankfurt, connected to Production and Preview.
+   The app prefers `DATABASE_URL_UNPOOLED` (direct connection; advisory locks and
+   `SKIP LOCKED` need a real session) and falls back to `DATABASE_URL`/`POSTGRES_URL`.
+   Pooled URLs also work (prepared statements are made pooler-safe).
+3. Environment variables: `AUTH_MODE=token`, `SECRET_KEY` (≥ 32 random chars),
+   `ADMIN_TOKEN` (≥ 24 chars, your sign-in token), optional `ADMIN_EMAIL`,
+   `PROVIDER_API_KEY`, optional `CRON_SECRET`. On deployed environments
+   `ENVIRONMENT=production` and secure cookies are the default.
+4. Deploy. The first API request of a new instance applies pending migrations (under a
+   Postgres advisory lock), seeds the niche templates and creates/updates the admin
+   from `ADMIN_TOKEN`. Changing `ADMIN_TOKEN` and redeploying rotates it. Add more users
+   from a machine with the repo: `DATABASE_URL=<Neon URL> uv run python -m app.cli create-user …`
+   (run in `apps/api`).
+
+**Background jobs without a worker process.** `SERVERLESS` is detected from `VERCEL`,
+which disables the embedded worker. Jobs are processed by `POST /api/worker/run`: it
+claims queued jobs and runs them until the slice budget (`WORKER_RUN_BUDGET_SECONDS`,
+default 40 s, shortened when Vercel's invocation deadline is closer) is spent. A
+job then stops at a safe point — between provider queries, between audits, between
+rescoring batches — saves a checkpoint (`jobs.checkpoint`) and is re-queued without
+using up an attempt; the next slice resumes it. The web app calls the endpoint in a
+loop whenever a job is active (`apps/web/src/lib/worker-pump.ts`), and Vercel Cron
+calls `GET /api/worker/cron` daily (maintenance + leftovers; requires `CRON_SECRET`).
+Consequence: jobs advance while someone has the app open.
+
+**Safety checks.** On a public deployment the API answers `503 setup_required` with a
+plain explanation when the database is missing, `AUTH_MODE=none` is used without
+`ALLOW_OPEN_ACCESS=true`, `SECRET_KEY` is invalid, or nobody can sign in. Values are
+never echoed.
+
+**Limits to know.** The Hobby plan is for non-commercial use (a sales team needs Pro).
+Neon's free tier suspends idle compute, so the first request after a pause takes
+about a second longer. Rate limits are per function instance. Vercel functions have no
+fixed egress IP, so the Google key can be restricted by API but not by IP.
+
+## Vercel (frontend only)
+
+To serve only the web app from Vercel in front of container-hosted APIs, create a
+project with Root Directory `apps/web` and this `apps/web/vercel.json`:
 
 ```json
 {
+  "buildCommand": "cd ../.. && npx --yes pnpm@10.33.0 --filter @leadtracker/web build",
+  "installCommand": "cd ../.. && npx --yes pnpm@10.33.0 install --frozen-lockfile",
+  "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://YOUR-API-HOST/api/:path*" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
