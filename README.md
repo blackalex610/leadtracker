@@ -1,19 +1,51 @@
-# Lead Tracker — local business prospecting
+# Lead Tracker
 
-An internal sales-intelligence tool for a small team in Sofia, Bulgaria. It finds
-local businesses (gyms, salons, barbers, restaurants, dentists…), checks their
-phone numbers, audits their websites and Google listings, and tells a
-salesperson in under five seconds **why they are calling this business**.
+**Prospecting software that finds local businesses in a chosen niche and area, audits their online presence, and tells a salesperson in a few seconds why each one is worth a call.**
+
+A user picks a niche (gyms, salons, barbers, restaurants, dentists and so on) and a location. Lead Tracker pulls matching businesses from the Google Places API, normalizes and de-duplicates their phone numbers, audits each business's website and Google listing, and ranks the results by how much the business stands to gain from what the user is selling. Every lead comes with a written explanation of its score and a suggested pitch built only from what was actually observed.
 
 ```
-niche + location → search (Google Places API New) → save & de-duplicate → normalize phones
+niche + location → search (Google Places API) → save & de-duplicate → normalize phones
 → audit website → analyse Google profile → detect opportunities → score + priority
 → review → call (keyboard-driven) → export
 ```
 
-It is not a scraper: data comes from the official Google Places API (New), the
-website auditor fetches only a handful of public pages per site (robots.txt
-respected), and every score is backed by a stored, human-readable reason.
+It is not a scraper. Business data comes from the official Google Places API, the website auditor fetches only a handful of public pages per site and respects `robots.txt`, and every score is backed by a stored, human-readable reason.
+
+Originally built for a sales team in Sofia, Bulgaria.
+
+---
+
+## Use cases
+
+**Selling websites (primary use case).** Web design studios and freelancers need a steady list of businesses that need a new website. Lead Tracker surfaces businesses with no website at all, sites that are outdated or broken on mobile, sites without online booking or visible prices, and listings that link only to a Facebook page. Each lead arrives with the specific problems found, so the first call opens with something concrete instead of a generic pitch.
+
+The same pipeline works for anyone who sells to local businesses:
+
+| Who | What they filter for |
+|---|---|
+| SEO and digital marketing agencies | Weak Google profiles: missing hours, few photos, low review volume, category mismatches |
+| Booking, POS and payment providers | Service businesses with no online booking or only phone reservations |
+| B2B suppliers and service providers | Call lists segmented by niche, neighborhood, rating and opening hours |
+| Market research and business development | Business density, ratings and digital maturity by niche and area |
+| Franchise and expansion planning | Competitor coverage across neighborhoods before choosing a location |
+
+The niche templates, scoring weights and pitch rules are all editable at runtime, so the tool can be pointed at a different offer without code changes.
+
+---
+
+## Engineering highlights
+
+- **Explainable, deterministic scoring.** The opportunity engine is a configurable rule set, not a language model. Every lead has an Opportunity Score, tags such as `NO_WEBSITE` or `OUTDATED_WEBSITE`, a HOT / WARM / COLD priority and a stored reason for each.
+- **Website auditing with 40+ signals** across technical, mobile, conversion, content and trust categories, in both English and Bulgarian.
+- **SSRF-safe fetching.** The auditor resolves and pins IP addresses, blocks private ranges and ignores proxy variables, because it fetches URLs that come from third-party data.
+- **Postgres as the job queue.** Background jobs are claimed with `SELECT … FOR UPDATE SKIP LOCKED`, so any number of workers can run without Redis. On serverless hosting the same jobs run in resumable 40-second slices.
+- **Type-safe API contract.** TypeScript types are generated from the FastAPI OpenAPI schema, and CI fails if they drift.
+- **Cost control built in.** Live cost estimates before a search runs, query caching and de-duplication, rate limiting, and per-SKU usage tracking against Google's price list.
+- **Compliance by design.** A permanent do-not-contact list enforced at every stage, no personal data stored, and automatic expiry of Google data that the Maps Platform terms restrict.
+- **Quality gates.** `mypy --strict`, Ruff, ESLint, pytest against a real PostgreSQL database, Vitest, Playwright end-to-end tests, Docker images and GitHub Actions CI.
+
+**Stack:** Python, FastAPI, SQLAlchemy 2 (async), Alembic, PostgreSQL · React 19, TypeScript, Vite, Tailwind CSS v4, shadcn/ui, TanStack Query · Docker, Vercel, Neon Postgres.
 
 ---
 
