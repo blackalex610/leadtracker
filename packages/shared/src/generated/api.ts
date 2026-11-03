@@ -1857,6 +1857,12 @@ export interface components {
              * @default 150
              */
             calls_per_day: number;
+            /**
+             * Min Reviews
+             * @description Businesses with fewer Google reviews are not a fit (unless already in play)
+             * @default 150
+             */
+            min_reviews: number;
         };
         /** OfferSettings */
         OfferSettings: {
@@ -2241,7 +2247,7 @@ export interface components {
             /**
              * Max Queries
              * @description Cost cap: provider queries at most
-             * @default 30
+             * @default 60
              */
             max_queries?: number;
             /**

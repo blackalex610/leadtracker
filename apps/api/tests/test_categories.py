@@ -30,7 +30,7 @@ def make(**overrides: Any) -> ScoringInput:
         "phone_type": "mobile",
         "website_url": None,
         "rating": 4.7,
-        "review_count": 45,
+        "review_count": 217,
         "address": "ul. Test 1",
         "business_status": "OPERATIONAL",
         "photo_count": 8,
@@ -40,9 +40,9 @@ def make(**overrides: Any) -> ScoringInput:
     return ScoringInput(**base)
 
 
-def cat(inp: ScoringInput, chain: str | None = None):  # type: ignore[no-untyped-def]
+def cat(inp: ScoringInput, chain: str | None = None, config: OfferConfig | None = None):  # type: ignore[no-untyped-def]
     result = calculate_opportunity_score(inp, ScoringConfig())
-    return categorize(inp, result, OfferConfig(), inp.target, chain), result
+    return categorize(inp, result, config or OfferConfig(), inp.target, chain), result
 
 
 def ok_audit(codes: list[str] | None = None, health: int = 85, **facts: Any) -> AuditSnapshot:
@@ -56,14 +56,29 @@ def test_no_website_established_business() -> None:
     offer, _ = cat(make())
     assert offer.category == C.NO_SITE
     assert offer.deal_value == DEFAULT_OFFERS[C.NO_SITE].premium_price  # plumbers are tier 3
-    # base odds + established (30+ reviews) + 4.5★ + mobile number
-    assert offer.close_odds == DEFAULT_OFFERS[C.NO_SITE].odds + 4 + 2 + 4
+    # base odds + busy (100+ reviews) + 4.5★ + mobile number
+    assert offer.close_odds == DEFAULT_OFFERS[C.NO_SITE].odds + 6 + 2 + 4
     assert offer.expected_value == round(offer.deal_value * offer.close_odds / 100)
 
 
 def test_few_reviews_and_no_site_is_a_new_business() -> None:
-    offer, _ = cat(make(review_count=3))
+    # Only reachable when the review minimum is lowered below 10.
+    offer, _ = cat(make(review_count=3), config=OfferConfig(min_reviews=0))
     assert offer.category == C.NEW_BUSINESS
+
+
+def test_minimum_reviews_rule() -> None:
+    below, _ = cat(make(review_count=149))
+    at, _ = cat(make(review_count=150))
+    assert below.category == C.NOT_A_FIT and below.blocker == "few_reviews"
+    assert "149 Google reviews (minimum 150)" in below.reason
+    assert at.category == C.NO_SITE
+    # Leads already in play keep their offer whatever their review count.
+    engaged, _ = cat(make(review_count=12, engaged=True))
+    assert engaged.category == C.NO_SITE and engaged.deal_value > 0
+    # Configurable.
+    lowered, _ = cat(make(review_count=60), config=OfferConfig(min_reviews=50))
+    assert lowered.category == C.NO_SITE
 
 
 def test_social_and_platform_pages_are_not_websites() -> None:
@@ -93,7 +108,7 @@ def test_site_categories_after_audit() -> None:
     site = {"website_url": "https://x.bg", "website_kind": "own", "website_status": "ok"}
     weak, _ = cat(make(**site, audit=ok_audit(["no_viewport"], health=30)))
     booking, _ = cat(make(**site, target=BARBERS, audit=ok_audit(["no_booking"])))
-    google, _ = cat(make(**site, review_count=4, audit=ok_audit()))
+    google, _ = cat(make(**site, photo_count=1, audit=ok_audit()))
     fine, _ = cat(make(**site, audit=ok_audit()))
     unchecked, _ = cat(make(**{**site, "website_status": "unaudited"}))
     assert weak.category == C.WEAK_SITE
@@ -106,16 +121,17 @@ def test_site_categories_after_audit() -> None:
 def test_not_a_fit_blockers() -> None:
     chain, _ = cat(make(), chain="vianor")
     closed, _ = cat(make(business_status="CLOSED_PERMANENTLY"))
-    badly_rated, _ = cat(make(rating=2.9, review_count=40))
+    badly_rated, _ = cat(make(rating=2.9, review_count=300))
     for offer in (chain, closed, badly_rated):
         assert offer.category == C.NOT_A_FIT
         assert offer.deal_value == 0
     assert "chain" in chain.reason
+    assert [o.blocker for o in (chain, closed, badly_rated)] == ["chain", "closed", "low_rating"]
 
 
 def test_landline_and_few_reviews_lower_the_odds() -> None:
-    mobile, _ = cat(make(review_count=40))
-    landline, _ = cat(make(review_count=40, phone_type="fixed_line"))
+    mobile, _ = cat(make(review_count=200))
+    landline, _ = cat(make(review_count=200, phone_type="fixed_line"))
     assert landline.close_odds == mobile.close_odds - 6
 
 

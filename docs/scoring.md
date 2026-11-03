@@ -96,12 +96,19 @@ lead list are ordered by **expected value = price × odds**, callbacks first.
 | `NO_BOOKING` | working site, booking business, no online booking | Online booking | €190 (€290) | 14% |
 | `WEAK_GOOGLE` | site fine, Google listing thin (reviews/photos/hours) | Google profile boost | €129 (€149) | 20% |
 | `UNCHECKED` | own site not audited yet | — | — | — |
-| `NOT_A_FIT` | good presence, chain branch, closed, rated < 3.5★ | skip | — | — |
+| `NOT_A_FIT` | good presence, chain branch, closed, **fewer than 150 Google reviews**, rated < 3.5★ | skip | — | — |
 
 Premium prices apply to `value_tier` 3 targets (one customer is worth a lot: trades,
 dentists, event halls, driving schools, guest houses). Odds move with fit: +4/+6 for 30+/100+
 reviews, +2 for ≥ 4.5★, +4 for a mobile number (the owner answers), −2 for a landline,
-−4 for under 5 reviews; a lead without a working phone gets 0. Prices, premium prices,
+−4 for under 5 reviews; a lead without a working phone gets 0.
+
+**Minimum reviews.** Only established businesses are prospects: fewer than `min_reviews`
+Google reviews (default **150**, Settings → Offers & goal) makes a lead `NOT_A_FIT`, so new
+searches skip it and the calling queue ignores it. Leads already in play (status Callback,
+Interested, Qualified, Proposal or Won) keep their offer whatever their review count, and a
+scheduled callback always shows up in the calling queue. With the default minimum,
+`NEW_BUSINESS` (< 10 reviews) can't occur; it comes back if the minimum is lowered. Prices, premium prices,
 odds, the weekly revenue goal and calls per day are editable in **Settings → Offers & goal**
 (then "Re-price existing leads").
 
@@ -111,7 +118,7 @@ One click plans queries `"<target query> в <city>"` for every target, then
 `"<target query> в <neighborhood>, <city>"`, skipping any query that ran successfully in the
 last 30 days, and stops when it has the requested number of **fresh** leads. A lead counts
 when it is new to the database, has a working phone, isn't on the do-not-contact list and
-isn't `NOT_A_FIT`; an own website still to be audited counts half (many turn out fine).
+isn't `NOT_A_FIT` (which includes the review minimum); an own website still to be audited counts half (many turn out fine).
 After the audit, leads whose site turns out good drop out of the results.
 
 ## Wording

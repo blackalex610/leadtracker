@@ -40,6 +40,8 @@ class ScoringInput:
     has_phone: bool = False
     phone_invalid: bool = False
     phone_type: str | None = None
+    # Already in play (callback / interested / proposal / won): keep selling regardless of fit rules.
+    engaged: bool = False
     website_url: str | None = None
     website_kind: str | None = None
     website_status: str = "none"

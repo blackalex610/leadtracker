@@ -6229,13 +6229,22 @@
             "minimum": 1.0,
             "title": "Calls Per Day",
             "default": 150
+          },
+          "min_reviews": {
+            "type": "integer",
+            "maximum": 100000.0,
+            "minimum": 0.0,
+            "title": "Min Reviews",
+            "description": "Businesses with fewer Google reviews are not a fit (unless already in play)",
+            "default": 150
           }
         },
         "type": "object",
         "required": [
           "offers",
           "weekly_goal",
-          "calls_per_day"
+          "calls_per_day",
+          "min_reviews"
         ],
         "title": "OfferConfig",
         "description": "Editable prices/odds per category (Settings → Offers)."
@@ -7243,7 +7252,7 @@
             "minimum": 1.0,
             "title": "Max Queries",
             "description": "Cost cap: provider queries at most",
-            "default": 30
+            "default": 60
           },
           "use_neighborhoods": {
             "type": "boolean",

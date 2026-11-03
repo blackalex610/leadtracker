@@ -180,6 +180,12 @@ class OfferConfig(BaseModel):
     )
     weekly_goal: int = Field(default=500, ge=0, le=1_000_000, description="Revenue goal per 7 days (EUR)")
     calls_per_day: int = Field(default=150, ge=1, le=2000)
+    min_reviews: int = Field(
+        default=150,
+        ge=0,
+        le=100_000,
+        description="Businesses with fewer Google reviews are not a fit (unless already in play)",
+    )
 
     @field_validator("offers")
     @classmethod
@@ -201,6 +207,8 @@ class CategoryResult:
     reason: str
     upsells: list[str] = field(default_factory=list)
     fit_notes: list[str] = field(default_factory=list)
+    # Why a NOT_A_FIT lead is out: closed | chain | few_reviews | low_rating
+    blocker: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -211,6 +219,7 @@ class CategoryResult:
             "reason": self.reason,
             "upsells": self.upsells,
             "fit_notes": self.fit_notes,
+            "blocker": self.blocker,
         }
 
 
@@ -245,13 +254,18 @@ def _need(inp: ScoringInput, result: ScoreResult) -> tuple[LeadCategory, str]:
     return LeadCategory.NOT_A_FIT, "Website and Google profile look good"
 
 
-def _not_a_fit(inp: ScoringInput, chain: str | None) -> str | None:
+def _not_a_fit(inp: ScoringInput, chain: str | None, min_reviews: int) -> tuple[str, str] | None:
+    """(code, reason) when the business is out. Leads already in play (callback,
+    interested, proposal, won) are never dropped for their review count."""
+    reviews = inp.review_count or 0
     if inp.business_status and inp.business_status.startswith("CLOSED"):
-        return "Listed as closed"
+        return "closed", "Listed as closed"
     if chain:
-        return f"Branch of a chain ({chain})"
-    if inp.rating is not None and (inp.review_count or 0) >= 5 and inp.rating < MIN_GOOD_RATING:
-        return f"Rated {inp.rating:.1f}★ - unlikely to invest in marketing"
+        return "chain", f"Branch of a chain ({chain})"
+    if reviews < min_reviews and not inp.engaged:
+        return "few_reviews", f"Only {reviews} Google reviews (minimum {min_reviews})"
+    if inp.rating is not None and reviews >= 5 and inp.rating < MIN_GOOD_RATING:
+        return "low_rating", f"Rated {inp.rating:.1f}★ - unlikely to invest in marketing"
     return None
 
 
@@ -263,9 +277,9 @@ def categorize(
     chain: str | None = None,
 ) -> CategoryResult:
     """Pick the one offer to pitch this lead, its price and close odds."""
-    blocker = _not_a_fit(inp, chain)
+    blocker = _not_a_fit(inp, chain, config.min_reviews)
     if blocker:
-        return CategoryResult(LeadCategory.NOT_A_FIT, 0, 0, 0, blocker)
+        return CategoryResult(LeadCategory.NOT_A_FIT, 0, 0, 0, blocker[1], blocker=blocker[0])
     category, reason = _need(inp, result)
     offer = config.offer(category)
     premium = bool(target and target.value_tier >= 3)

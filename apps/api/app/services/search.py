@@ -65,7 +65,7 @@ class SearchRequest(BaseModel):
 
     location: str = Field(default="Sofia", min_length=2, max_length=120)
     target_leads: int = Field(default=150, ge=1, le=2000, description="Fresh ICP leads to find")
-    max_queries: int = Field(default=30, ge=1, le=200, description="Cost cap: provider queries at most")
+    max_queries: int = Field(default=60, ge=1, le=200, description="Cost cap: provider queries at most")
     use_neighborhoods: bool = Field(
         default=True, description="Search neighborhood by neighborhood once city-wide queries are used up"
     )
@@ -126,6 +126,8 @@ def icp_reject_reason(business: Business) -> str | None:
     if business.suppressed or business.status == LeadStatus.DO_NOT_CONTACT.value:
         return "do_not_contact"
     if business.lead_category == LeadCategory.NOT_A_FIT.value:
+        if (business.category_details or {}).get("blocker") == "few_reviews":
+            return "few_reviews"
         return "not_a_fit"
     return None
 

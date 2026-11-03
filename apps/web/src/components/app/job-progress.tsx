@@ -57,6 +57,7 @@ export function JobProgress({ job, onRetried }: { job: JobOut; onRetried?: (job:
     ["businesses checked", counter(job, "found") || total],
     ["fresh leads", fresh],
     ["not a fit (chain, closed, good site, low rating)", counter(job, "rejected_not_a_fit") + counter(job, "dropped_after_audit")],
+    ["too few reviews", counter(job, "rejected_few_reviews")],
     ["no phone", counter(job, "rejected_no_phone")],
     ["already in your list", counter(job, "rejected_already_known")],
     ["websites audited", counter(job, "audited")],

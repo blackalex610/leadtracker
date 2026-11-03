@@ -263,7 +263,8 @@
     }
    },
    "weekly_goal": 500,
-   "calls_per_day": 150
+   "calls_per_day": 150,
+   "min_reviews": 150
   }
  },
  "environment": {

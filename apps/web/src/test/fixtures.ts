@@ -64,7 +64,7 @@ export function makeJob(overrides: Partial<JobOut> = {}): JobOut {
     id: 7,
     kind: "search",
     status: "completed",
-    params: { location: "Sofia", target_leads: 150, max_queries: 30, use_neighborhoods: true, audit_websites: true },
+    params: { location: "Sofia", target_leads: 150, max_queries: 60, use_neighborhoods: true, audit_websites: true },
     stage: "done",
     progress_total: 2,
     progress_processed: 2,

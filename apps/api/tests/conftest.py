@@ -139,7 +139,7 @@ def make_place(index: int, **overrides: Any) -> ProviderPlace:
         "website_url": None,
         "maps_url": f"https://maps.google.com/?cid={index}",
         "rating": 4.6,
-        "review_count": 120,
+        "review_count": 220,
         "opening_hours": {
             "periods": [
                 {"open": {"day": d, "hour": 7, "minute": 0}, "close": {"day": d, "hour": 22, "minute": 0}}

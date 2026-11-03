@@ -293,8 +293,9 @@ async def test_icp_gate_and_stop_at_target(
                     make_place(1),  # no website -> lead
                     make_place(2, international_phone=None),  # can't be called
                     make_place(3, name="Vianor Люлин"),  # chain branch
-                    make_place(4, rating=2.6, review_count=50),  # badly rated
+                    make_place(4, rating=2.6, review_count=300),  # badly rated
                     make_place(5, business_status="CLOSED_PERMANENTLY"),
+                    make_place(10, review_count=80),  # under the 150-review minimum
                 ]
             ],
             Q2: [[make_place(6), make_place(7), make_place(8)]],
@@ -306,9 +307,10 @@ async def test_icp_gate_and_stop_at_target(
     assert job.counters["matched"] == 2
     assert job.counters["rejected_no_phone"] == 1
     assert job.counters["rejected_not_a_fit"] == 3
+    assert job.counters["rejected_few_reviews"] == 1
     assert [c.text_query for c in provider.calls] == [Q1, Q2]  # stopped once 2 leads were found
     async with sessionmaker() as session:
-        assert await count(session, Business) == 6  # places 7 and 8 were never saved
+        assert await count(session, Business) == 7  # places 7 and 8 were never saved
         chain = (await session.execute(select(Business).where(Business.name == "Vianor Люлин"))).scalar_one()
         assert chain.lead_category == "NOT_A_FIT" and "chain" in (chain.category_reason or "")
 

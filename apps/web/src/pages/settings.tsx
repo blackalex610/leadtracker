@@ -185,6 +185,7 @@ function OffersTab({ data }: { data: SettingsOut }) {
     defaultValues: {
       weekly_goal: offers.weekly_goal ?? 500,
       calls_per_day: offers.calls_per_day ?? 150,
+      min_reviews: offers.min_reviews ?? 150,
       offers: Object.fromEntries(
         SELLABLE_CATEGORIES.map((c) => [
           c,
@@ -211,6 +212,7 @@ function OffersTab({ data }: { data: SettingsOut }) {
       {
         weekly_goal: Number(v.weekly_goal),
         calls_per_day: Number(v.calls_per_day),
+        min_reviews: Number(v.min_reviews),
         offers: Object.fromEntries(
           Object.entries(v.offers).map(([k, o]) => [
             k,
@@ -233,6 +235,12 @@ function OffersTab({ data }: { data: SettingsOut }) {
         <CardContent className="grid gap-3 sm:grid-cols-3">
           <NumberInput form={form} name="weekly_goal" label="Revenue goal per 7 days (€)" hint="Shown on the dashboard" />
           <NumberInput form={form} name="calls_per_day" label="Calls per day" hint="Default calling-session size" />
+          <NumberInput
+            form={form}
+            name="min_reviews"
+            label="Minimum Google reviews"
+            hint="Fewer = not a fit (leads already in play are kept). Re-price after changing."
+          />
         </CardContent>
       </Card>
       <Card>

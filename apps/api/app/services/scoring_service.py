@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.core.chains import SHARED_DOMAIN_CHAIN_THRESHOLD, chain_brand
-from app.core.enums import PRIORITY_RANK, LeadCategory, Priority
+from app.core.enums import PRIORITY_RANK, LeadCategory, LeadStatus, Priority
 from app.core.opening_hours import open_in_window_on_weekdays
 from app.data.targets import Target, target_for
 from app.log import get_logger
@@ -22,6 +22,16 @@ from app.scoring.pitch import Pitch, build_pitch
 from app.services.settings import RuntimeSettings
 
 log = get_logger(__name__)
+
+ENGAGED_STATUSES = frozenset(
+    {
+        LeadStatus.CALLBACK.value,
+        LeadStatus.INTERESTED.value,
+        LeadStatus.QUALIFIED.value,
+        LeadStatus.PROPOSAL.value,
+        LeadStatus.WON.value,
+    }
+)
 
 
 def audit_snapshot(audit: WebsiteAudit | None) -> AuditSnapshot | None:
@@ -59,6 +69,7 @@ def scoring_input(business: Business, audit: WebsiteAudit | None, runtime: Runti
         has_phone=bool(business.normalized_phone),
         phone_invalid=business.phone_invalid,
         phone_type=business.phone_type,
+        engaged=business.status in ENGAGED_STATUSES,
         website_url=business.website_url,
         website_kind=business.website_kind,
         website_status=business.website_status,
@@ -155,7 +166,11 @@ def apply_category(business: Business, offer: CategoryResult) -> None:
     business.close_odds = offer.close_odds
     business.expected_value = offer.expected_value
     business.category_reason = offer.reason
-    business.category_details = {"upsells": offer.upsells, "fit_notes": offer.fit_notes}
+    business.category_details = {
+        "upsells": offer.upsells,
+        "fit_notes": offer.fit_notes,
+        "blocker": offer.blocker,
+    }
     if offer.category == LeadCategory.NOT_A_FIT and business.priority != Priority.COLD.value:
         business.priority = Priority.COLD.value
         business.priority_rank = PRIORITY_RANK[Priority.COLD]
@@ -177,6 +192,7 @@ def stored_category(business: Business) -> CategoryResult:
         business.category_reason or "",
         list(details.get("upsells") or []),
         list(details.get("fit_notes") or []),
+        details.get("blocker"),
     )
 
 

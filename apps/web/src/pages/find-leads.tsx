@@ -77,18 +77,22 @@ export function FindLeadsPage() {
 }
 
 function Intro() {
+  const settings = useSettings();
+  const minReviews = settings.data?.runtime.offers.min_reviews ?? 150;
   return (
     <Card className="h-full">
       <EmptyState
         icon={CrosshairIcon}
         title="Pick a city and hit Find leads"
-        description="It searches the business types most likely to need a website or more customers (trades, auto, clinics, salons, venues…), skips chains, closed and badly rated places, checks every website, and sorts what's left by the money each call is worth. Every click searches new ground — queries from the last 30 days are never repeated."
+        description={`It searches the business types most likely to need a website or more customers (trades, auto, clinics, salons, venues…), keeps only established businesses with ${minReviews}+ Google reviews, skips chains, closed and badly rated places, checks every website, and sorts what's left by the money each call is worth. Every click searches new ground — queries from the last 30 days are never repeated.`}
       />
     </Card>
   );
 }
 
 function WhatItLooksFor({ targets }: { targets: TargetMeta[] }) {
+  const settings = useSettings();
+  const minReviews = settings.data?.runtime.offers.min_reviews ?? 150;
   const groups = useMemo(() => {
     const map = new Map<string, TargetMeta[]>();
     for (const t of targets) map.set(t.group_label, [...(map.get(t.group_label) ?? []), t]);
@@ -107,8 +111,8 @@ function WhatItLooksFor({ targets }: { targets: TargetMeta[] }) {
             </div>
           ))}
           <p className="text-muted-foreground">
-            Owner-run businesses whose customers search Google on a phone and where one customer is worth far more than
-            a website costs. High-value types (trades, dentists, venues, driving schools) are offered the premium price.
+            Owner-run businesses with at least {minReviews} Google reviews (busy enough to pay), whose customers search
+            Google on a phone and where one customer is worth far more than a website costs. High-value types (trades, dentists, venues, driving schools) are offered the premium price.
           </p>
         </div>
       </details>
@@ -137,7 +141,7 @@ function SearchForm({ disabled, onStarted }: { disabled: boolean; onStarted: (jo
     defaultValues: {
       location: runtime?.general.default_city ?? "Sofia",
       target_leads: runtime?.search.default_max_results ?? callsPerDay,
-      max_queries: 30,
+      max_queries: 60,
       use_neighborhoods: true,
       audit_websites: true,
     },

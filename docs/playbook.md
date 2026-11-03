@@ -35,7 +35,9 @@ goal holds. The calling queue is sorted by price × odds, so the first 150 calls
 ## Daily routine
 
 1. **Morning:** Find leads → your city → 150. Each click searches new business types and
-   neighborhoods; nothing is repeated for 30 days.
+   neighborhoods; nothing is repeated for 30 days. Only businesses with 150+ Google reviews
+   count — busy enough to pay, and proud of their reputation. That filter throws away most
+   results, so one click may need more queries (default cap 60 ≈ 180 requests).
 2. **Call** with Start Calling Session (callbacks first, then best deals). Trades and auto
    shops answer best 9:00-12:00; salons and clinics before opening or 14:00-16:00 — set the
    calling window accordingly instead of the default evening window.

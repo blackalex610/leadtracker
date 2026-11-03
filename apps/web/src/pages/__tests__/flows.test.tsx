@@ -76,7 +76,7 @@ describe("Search → results", () => {
     expect(body).toEqual({
       location: "Sofia",
       target_leads: 150,
-      max_queries: 30,
+      max_queries: 60,
       use_neighborhoods: true,
       audit_websites: true,
     });

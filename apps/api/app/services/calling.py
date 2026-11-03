@@ -61,10 +61,16 @@ def _base_query(filters: CallingFilters, runtime: RuntimeSettings, user_id: int 
     if filters.priorities:
         stmt = stmt.where(or_(Business.priority.in_([p.value for p in filters.priorities]), callback_due))
     if filters.categories:
-        stmt = stmt.where(Business.lead_category.in_([c.value for c in filters.categories]))
+        stmt = stmt.where(
+            or_(Business.lead_category.in_([c.value for c in filters.categories]), callback_due)
+        )
     else:
         stmt = stmt.where(
-            or_(Business.lead_category.is_(None), Business.lead_category != LeadCategory.NOT_A_FIT.value)
+            or_(
+                Business.lead_category.is_(None),
+                Business.lead_category != LeadCategory.NOT_A_FIT.value,
+                callback_due,
+            )
         )
     if filters.target_key:
         stmt = stmt.where(Business.target_key == filters.target_key)

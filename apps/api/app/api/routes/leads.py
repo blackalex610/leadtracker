@@ -153,6 +153,7 @@ async def update_lead(lead_id: int, body: LeadUpdate, session: SessionDep, user:
             business.suppressed = False
         changes["status"] = {"from": business.status, "to": body.status.value}
         business.status = body.status.value
+        needs_rescore = True
         if body.status == LeadStatus.DO_NOT_CONTACT:
             await suppress(
                 session,
@@ -246,6 +247,7 @@ async def bulk_update(body: BulkLeadUpdate, session: SessionDep, user: CurrentUs
     if body.assigned_to_id is not None and await session.get(User, body.assigned_to_id) is None:
         raise HTTPException(status_code=422, detail={"code": "unknown_user", "message": "Unknown user"})
     businesses = (await session.execute(select(Business).where(Business.id.in_(body.ids)))).scalars().all()
+    runtime = await load_settings(session) if body.status is not None else None
     updated = skipped = 0
     for business in businesses:
         changed = False
@@ -271,6 +273,8 @@ async def bulk_update(body: BulkLeadUpdate, session: SessionDep, user: CurrentUs
                 )
             )
             business.status = body.status.value
+            if runtime is not None:
+                await rescore_business(session, business, runtime)
             changed = True
         if body.unassign:
             business.assigned_to_id = None
@@ -394,8 +398,8 @@ async def call_lead(lead_id: int, body: CallCreate, session: SessionDep, user: C
         )
     except LeadSuppressedError as exc:
         raise HTTPException(status_code=409, detail={"code": "do_not_contact", "message": str(exc)}) from exc
-    if body.outcome.value == "WRONG_NUMBER":
-        await rescore_business(session, business, runtime)
+    # Outcomes change the status (in play or not) and WRONG_NUMBER the phone: re-categorize.
+    await rescore_business(session, business, runtime)
     await session.commit()
     await session.refresh(call)
     await session.refresh(business)

@@ -92,13 +92,26 @@ async def test_sorting(client: httpx.AsyncClient, leads: list[int]) -> None:
     assert {i["name"]: i["lead_category"] for i in by_value} == {
         "Alpha Gym": "NO_SITE",
         "Бета Фитнес": "SOCIAL_ONLY",
-        "Gamma Gym": "NEW_BUSINESS",
+        "Gamma Gym": "NOT_A_FIT",  # 3 reviews: under the 150 minimum
         "Delta Gym": "UNCHECKED",
     }
     assert next(i for i in by_value if i["name"] == "Gamma Gym")["expected_value"] == 0
     bad = await client.get("/api/leads", params={"sort": "drop table"})
     assert bad.status_code == 422
     assert bad.json()["detail"]["code"] == "validation_error"
+
+
+async def test_engaged_leads_keep_their_offer_below_the_review_minimum(
+    client: httpx.AsyncClient, leads: list[int]
+) -> None:
+    gamma = leads[2]  # 3 reviews, no website
+    before = (await client.get(f"/api/leads/{gamma}")).json()
+    assert before["lead_category"] == "NOT_A_FIT"
+    assert before["category_details"]["blocker"] == "few_reviews"
+    after = (await client.patch(f"/api/leads/{gamma}", json={"status": "INTERESTED"})).json()
+    assert after["lead_category"] == "NEW_BUSINESS" and after["deal_value"] > 0
+    back = (await client.patch(f"/api/leads/{gamma}", json={"status": "LOST"})).json()
+    assert back["lead_category"] == "NOT_A_FIT"
 
 
 async def test_lead_detail(client: httpx.AsyncClient, leads: list[int]) -> None:
