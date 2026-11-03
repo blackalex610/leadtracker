@@ -19,6 +19,7 @@ from app.config import get_settings
 from app.core.opening_hours import parse_hhmm
 from app.data.pricing import DEFAULT_PRICING_CURRENCY, DEFAULT_SKU_PRICES
 from app.models import AppSetting
+from app.scoring.category import OfferConfig
 from app.scoring.config import ScoringConfig
 
 
@@ -38,7 +39,7 @@ class GeneralSettings(SettingsModel):
     default_city: str = Field(default_factory=lambda: get_settings().default_city, max_length=120)
     timezone: str = Field(default_factory=lambda: get_settings().timezone)
     provider_language: str = Field(default_factory=lambda: get_settings().default_language, max_length=10)
-    pitch_language: Literal["en", "bg"] = "en"
+    pitch_language: Literal["en", "bg"] = "bg"
 
     @field_validator("default_country")
     @classmethod
@@ -83,7 +84,8 @@ class AuditSettings(SettingsModel):
 
 
 class SearchSettings(SettingsModel):
-    default_max_results: int = Field(default=60, ge=1, le=1000)
+    # leads per "Find leads" click; 150 = one day of calls
+    default_max_results: int = Field(default=150, ge=1, le=1000)
     max_results_limit: int = Field(default=500, ge=1, le=2000)
     provider_concurrency: int = Field(default=2, ge=1, le=10)
     provider_requests_per_second: float = Field(default=5.0, gt=0, le=50)
@@ -118,6 +120,7 @@ class RuntimeSettings(SettingsModel):
     csv: CsvSettings = Field(default_factory=CsvSettings)
     pricing: PricingSettings = Field(default_factory=PricingSettings)
     scoring: ScoringConfig = Field(default_factory=ScoringConfig)
+    offers: OfferConfig = Field(default_factory=OfferConfig)
 
 
 GROUPS: tuple[str, ...] = tuple(RuntimeSettings.model_fields.keys())

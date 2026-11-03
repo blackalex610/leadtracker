@@ -62,7 +62,8 @@ Python dependencies come from `api/requirements.txt`, generated from `apps/api/u
    `PROVIDER_API_KEY`, optional `CRON_SECRET`. On deployed environments
    `ENVIRONMENT=production` and secure cookies are the default.
 4. Deploy. The first API request of a new instance applies pending migrations (under a
-   Postgres advisory lock), seeds the niche templates and creates/updates the admin
+   Postgres advisory lock), queues a one-off rescore for leads saved before lead categories existed,
+   and creates/updates the admin
    from `ADMIN_TOKEN`. Changing `ADMIN_TOKEN` and redeploying rotates it. Add more users
    from a machine with the repo: `DATABASE_URL=<Neon URL> uv run python -m app.cli create-user …`
    (run in `apps/api`).

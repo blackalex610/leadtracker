@@ -1,9 +1,12 @@
 import {
+  CATEGORY_LABELS,
   DATA_QUALITY_LABELS,
+  OFFER_LABELS,
   OPPORTUNITY_LABELS,
   PRIORITY_LABELS,
   STATUS_LABELS,
   type DataQuality,
+  type LeadCategory,
   type LeadStatus,
   type OpportunityType,
   type Priority,
@@ -117,6 +120,52 @@ export function DemoBadge() {
       <Badge variant="muted" className="uppercase">
         Demo
       </Badge>
+    </Tooltip>
+  );
+}
+
+/** Needs a whole website = biggest, easiest deals; site/Google upgrades next; the rest muted. */
+const CATEGORY_VARIANT: Record<LeadCategory, "hot" | "warm" | "secondary" | "muted"> = {
+  BROKEN_SITE: "hot",
+  NO_SITE: "hot",
+  SOCIAL_ONLY: "hot",
+  NEW_BUSINESS: "hot",
+  PLATFORM_ONLY: "warm",
+  WEAK_SITE: "warm",
+  NO_BOOKING: "warm",
+  WEAK_GOOGLE: "secondary",
+  UNCHECKED: "muted",
+  NOT_A_FIT: "muted",
+};
+
+export function CategoryBadge({
+  category,
+  reason,
+  className,
+}: {
+  category: LeadCategory | null | undefined;
+  reason?: string | null;
+  className?: string;
+}) {
+  if (!category) return <span className="text-muted-foreground">—</span>;
+  return (
+    <Tooltip content={reason ? `${OFFER_LABELS[category]} — ${reason}` : OFFER_LABELS[category]}>
+      <Badge variant={CATEGORY_VARIANT[category]} className={cn("whitespace-nowrap", className)}>
+        {CATEGORY_LABELS[category]}
+      </Badge>
+    </Tooltip>
+  );
+}
+
+/** "€390 · 36%" — the offer price and its close odds. */
+export function DealValue({ value, odds, className }: { value: number; odds: number; className?: string }) {
+  if (!value) return <span className={cn("text-muted-foreground", className)}>—</span>;
+  return (
+    <Tooltip content={`Offer price €${value}, estimated close odds ${odds}% → worth €${Math.round((value * odds) / 100)} per lead`}>
+      <span className={cn("tabular whitespace-nowrap", className)}>
+        <span className="font-semibold">€{value}</span>
+        <span className="text-muted-foreground"> · {odds}%</span>
+      </span>
     </Tooltip>
   );
 }

@@ -1,8 +1,10 @@
 import {
+  LEAD_CATEGORIES,
   LEAD_STATUSES,
   OPPORTUNITY_TYPES,
   PRIORITIES,
   SORT_LABELS,
+  type LeadCategory,
   type LeadListQuery,
   type LeadStatus,
   type OpportunityType,
@@ -46,7 +48,11 @@ export function parseLeadQuery(params: URLSearchParams): LeadListQuery {
     .getAll("opportunity")
     .filter((o): o is OpportunityType => OPPORTUNITY_TYPES.includes(o as OpportunityType));
   if (opportunity.length) query.opportunity = opportunity;
-  for (const key of ["category", "city", "niche_key", "assigned_to"] as const) {
+  const categories = params
+    .getAll("lead_category")
+    .filter((c): c is LeadCategory => LEAD_CATEGORIES.includes(c as LeadCategory));
+  if (categories.length) query.lead_category = categories;
+  for (const key of ["category", "city", "target_key", "assigned_to"] as const) {
     const value = params.get(key);
     if (value) query[key] = value;
   }
@@ -100,7 +106,18 @@ function toggleBool(q: LeadListQuery, key: BoolKey, value: boolean): LeadListQue
   return { ...q, [key]: q[key] === value ? undefined : value, page: undefined };
 }
 
+/** Leads that need a whole website: the biggest, easiest deals. */
+const NEEDS_SITE: LeadCategory[] = ["BROKEN_SITE", "NO_SITE", "SOCIAL_ONLY", "NEW_BUSINESS", "PLATFORM_ONLY"];
+const isNeedsSite = (q: LeadListQuery) =>
+  q.lead_category?.length === NEEDS_SITE.length && NEEDS_SITE.every((c) => q.lead_category?.includes(c));
+
 export const QUICK_FILTERS: QuickFilter[] = [
+  {
+    id: "needs-site",
+    label: "Needs a website",
+    isActive: isNeedsSite,
+    toggle: (q) => ({ ...q, lead_category: isNeedsSite(q) ? undefined : [...NEEDS_SITE], page: undefined }),
+  },
   {
     id: "hot",
     label: "HOT",

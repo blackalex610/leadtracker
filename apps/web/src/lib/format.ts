@@ -70,3 +70,11 @@ export function healthTone(score: number | null | undefined): "bad" | "ok" | "go
   if (score < 70) return "ok";
   return "good";
 }
+
+/** Title of a find-leads job. Old (niche) jobs had a category; current ones only a location. */
+export function jobTitle(params: Record<string, unknown>): string {
+  const location = String(params.location ?? "");
+  if (typeof params.category === "string") return `${params.category} in ${location}`;
+  const target = typeof params.target_leads === "number" ? `${params.target_leads} leads` : "Leads";
+  return `${target} in ${location}`;
+}

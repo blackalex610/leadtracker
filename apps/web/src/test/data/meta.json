@@ -1,7 +1,8 @@
 {
  "version": "1.0.0",
  "environment": "development",
- "auth_mode": "none", "on_demand_worker": false,
+ "auth_mode": "none",
+ "on_demand_worker": false,
  "provider": {
   "name": "google_places",
   "configured": true,
@@ -20,30 +21,6 @@
   ],
   "Plovdiv": []
  },
- "category_suggestions": [
-  "gyms",
-  "personal trainers",
-  "beauty salons",
-  "nail salons",
-  "hair salons",
-  "barbers",
-  "restaurants",
-  "cafes",
-  "car detailing",
-  "dentists",
-  "physiotherapists",
-  "real estate agencies",
-  "massage",
-  "yoga studios",
-  "spas",
-  "veterinarians",
-  "florists",
-  "bakeries",
-  "car repair",
-  "photographers",
-  "wedding venues",
-  "tattoo studios"
- ],
  "lead_statuses": [
   "NEW",
   "CALLED",
@@ -424,5 +401,405 @@
    "label": "No 'About us' section detected",
    "penalty": 3
   }
- }
+ },
+ "targets": [
+  {
+   "key": "plumbers",
+   "label": "Plumbers",
+   "label_bg": "ВиК услуги",
+   "group": "home",
+   "group_label": "Home services & trades",
+   "value_tier": 3,
+   "booking": false
+  },
+  {
+   "key": "electricians",
+   "label": "Electricians",
+   "label_bg": "електротехници",
+   "group": "home",
+   "group_label": "Home services & trades",
+   "value_tier": 3,
+   "booking": false
+  },
+  {
+   "key": "renovations",
+   "label": "Renovation contractors",
+   "label_bg": "фирми за ремонти",
+   "group": "home",
+   "group_label": "Home services & trades",
+   "value_tier": 3,
+   "booking": false
+  },
+  {
+   "key": "windows_doors",
+   "label": "Windows & doors",
+   "label_bg": "фирми за дограма",
+   "group": "home",
+   "group_label": "Home services & trades",
+   "value_tier": 3,
+   "booking": false
+  },
+  {
+   "key": "hvac",
+   "label": "AC & heating service",
+   "label_bg": "сервизи за климатици",
+   "group": "home",
+   "group_label": "Home services & trades",
+   "value_tier": 3,
+   "booking": false
+  },
+  {
+   "key": "roofing",
+   "label": "Roofers",
+   "label_bg": "фирми за покриви",
+   "group": "home",
+   "group_label": "Home services & trades",
+   "value_tier": 3,
+   "booking": false
+  },
+  {
+   "key": "furniture",
+   "label": "Custom furniture",
+   "label_bg": "мебели по поръчка",
+   "group": "home",
+   "group_label": "Home services & trades",
+   "value_tier": 3,
+   "booking": false
+  },
+  {
+   "key": "locksmiths",
+   "label": "Locksmiths",
+   "label_bg": "ключари",
+   "group": "home",
+   "group_label": "Home services & trades",
+   "value_tier": 2,
+   "booking": false
+  },
+  {
+   "key": "appliance_repair",
+   "label": "Appliance repair",
+   "label_bg": "сервизи за ремонт на уреди",
+   "group": "home",
+   "group_label": "Home services & trades",
+   "value_tier": 2,
+   "booking": false
+  },
+  {
+   "key": "movers",
+   "label": "Movers",
+   "label_bg": "хамалски услуги",
+   "group": "home",
+   "group_label": "Home services & trades",
+   "value_tier": 2,
+   "booking": false
+  },
+  {
+   "key": "cleaning",
+   "label": "Cleaning services",
+   "label_bg": "фирми за почистване",
+   "group": "home",
+   "group_label": "Home services & trades",
+   "value_tier": 2,
+   "booking": false
+  },
+  {
+   "key": "pest_control",
+   "label": "Pest control",
+   "label_bg": "фирми за дезинсекция",
+   "group": "home",
+   "group_label": "Home services & trades",
+   "value_tier": 2,
+   "booking": false
+  },
+  {
+   "key": "car_repair",
+   "label": "Car repair",
+   "label_bg": "автосервизи",
+   "group": "auto",
+   "group_label": "Auto",
+   "value_tier": 2,
+   "booking": true
+  },
+  {
+   "key": "driving_schools",
+   "label": "Driving schools",
+   "label_bg": "автошколи",
+   "group": "auto",
+   "group_label": "Auto",
+   "value_tier": 3,
+   "booking": false
+  },
+  {
+   "key": "tyres",
+   "label": "Tyre shops",
+   "label_bg": "вулканизатори",
+   "group": "auto",
+   "group_label": "Auto",
+   "value_tier": 2,
+   "booking": true
+  },
+  {
+   "key": "car_detailing",
+   "label": "Car detailing",
+   "label_bg": "автодетайлинг",
+   "group": "auto",
+   "group_label": "Auto",
+   "value_tier": 2,
+   "booking": true
+  },
+  {
+   "key": "towing",
+   "label": "Towing & roadside help",
+   "label_bg": "пътна помощ",
+   "group": "auto",
+   "group_label": "Auto",
+   "value_tier": 2,
+   "booking": false
+  },
+  {
+   "key": "dentists",
+   "label": "Dental clinics",
+   "label_bg": "дентални кабинети",
+   "group": "health",
+   "group_label": "Health",
+   "value_tier": 3,
+   "booking": true
+  },
+  {
+   "key": "physio",
+   "label": "Physiotherapy",
+   "label_bg": "физиотерапевтични центрове",
+   "group": "health",
+   "group_label": "Health",
+   "value_tier": 2,
+   "booking": true
+  },
+  {
+   "key": "vets",
+   "label": "Vet clinics",
+   "label_bg": "ветеринарни клиники",
+   "group": "health",
+   "group_label": "Health",
+   "value_tier": 2,
+   "booking": true
+  },
+  {
+   "key": "event_venues",
+   "label": "Event halls",
+   "label_bg": "зали за събития",
+   "group": "events",
+   "group_label": "Events",
+   "value_tier": 3,
+   "booking": true
+  },
+  {
+   "key": "photographers",
+   "label": "Photographers",
+   "label_bg": "фотографи",
+   "group": "events",
+   "group_label": "Events",
+   "value_tier": 2,
+   "booking": false
+  },
+  {
+   "key": "kids_parties",
+   "label": "Kids party venues",
+   "label_bg": "детски центрове",
+   "group": "events",
+   "group_label": "Events",
+   "value_tier": 2,
+   "booking": true
+  },
+  {
+   "key": "cakes",
+   "label": "Custom cakes",
+   "label_bg": "торти по поръчка",
+   "group": "events",
+   "group_label": "Events",
+   "value_tier": 1,
+   "booking": false
+  },
+  {
+   "key": "beauty_salons",
+   "label": "Beauty & cosmetics salons",
+   "label_bg": "козметични салони",
+   "group": "beauty",
+   "group_label": "Beauty & wellness",
+   "value_tier": 2,
+   "booking": true
+  },
+  {
+   "key": "tattoo",
+   "label": "Tattoo studios",
+   "label_bg": "тату студиа",
+   "group": "beauty",
+   "group_label": "Beauty & wellness",
+   "value_tier": 2,
+   "booking": true
+  },
+  {
+   "key": "hair_salons",
+   "label": "Hair salons",
+   "label_bg": "фризьорски салони",
+   "group": "beauty",
+   "group_label": "Beauty & wellness",
+   "value_tier": 1,
+   "booking": true
+  },
+  {
+   "key": "barbers",
+   "label": "Barbers",
+   "label_bg": "бръснарници",
+   "group": "beauty",
+   "group_label": "Beauty & wellness",
+   "value_tier": 1,
+   "booking": true
+  },
+  {
+   "key": "nail_salons",
+   "label": "Nail salons",
+   "label_bg": "маникюрни салони",
+   "group": "beauty",
+   "group_label": "Beauty & wellness",
+   "value_tier": 1,
+   "booking": true
+  },
+  {
+   "key": "massage",
+   "label": "Massage studios",
+   "label_bg": "масажни студиа",
+   "group": "beauty",
+   "group_label": "Beauty & wellness",
+   "value_tier": 1,
+   "booking": true
+  },
+  {
+   "key": "gyms",
+   "label": "Gyms & fitness studios",
+   "label_bg": "фитнес зали",
+   "group": "fitness",
+   "group_label": "Fitness",
+   "value_tier": 2,
+   "booking": true
+  },
+  {
+   "key": "tutoring",
+   "label": "Tutoring & language schools",
+   "label_bg": "учебни центрове",
+   "group": "education",
+   "group_label": "Education",
+   "value_tier": 2,
+   "booking": false
+  },
+  {
+   "key": "accountants",
+   "label": "Accountants",
+   "label_bg": "счетоводни кантори",
+   "group": "business",
+   "group_label": "Business services",
+   "value_tier": 2,
+   "booking": false
+  },
+  {
+   "key": "guest_houses",
+   "label": "Guest houses & small hotels",
+   "label_bg": "къщи за гости",
+   "group": "stay",
+   "group_label": "Accommodation",
+   "value_tier": 3,
+   "booking": true
+  }
+ ],
+ "lead_categories": [
+  {
+   "key": "BROKEN_SITE",
+   "label": "Broken website",
+   "label_bg": "Счупен сайт",
+   "offer": "Website rescue",
+   "offer_bg": "Спасяване на сайта",
+   "description": "The website on the listing does not load, shows a parked domain or an 'under construction' page. Customers who click it from Google hit a dead end - urgent, easy to show, highest close rate.",
+   "sellable": true
+  },
+  {
+   "key": "NO_SITE",
+   "label": "No website",
+   "label_bg": "Няма сайт",
+   "offer": "Starter website",
+   "offer_bg": "Сайт визитка",
+   "description": "Established on Google (reviews, phone) but no website at all. The biggest pool of buyers: customers who search for them can't see services, prices or photos and call a competitor instead.",
+   "sellable": true
+  },
+  {
+   "key": "SOCIAL_ONLY",
+   "label": "Facebook/Instagram only",
+   "label_bg": "Само Facebook/Instagram",
+   "offer": "Own website",
+   "offer_bg": "Собствен сайт",
+   "description": "The Google listing links to a social page or link hub instead of a website. They already put effort into marketing - they get why it matters - but Google sends clicks to a page they don't control.",
+   "sellable": true
+  },
+  {
+   "key": "NEW_BUSINESS",
+   "label": "New business",
+   "label_bg": "Нов бизнес",
+   "offer": "Launch package",
+   "offer_bg": "Стартов пакет",
+   "description": "Few reviews and no website: a business that is just starting. They are actively spending to get known, so a site plus a properly set-up Google profile is exactly what they need now.",
+   "sellable": true
+  },
+  {
+   "key": "PLATFORM_ONLY",
+   "label": "Booking-platform page only",
+   "label_bg": "Само профил в платформа",
+   "offer": "Own site with direct booking",
+   "offer_bg": "Собствен сайт с директни резервации",
+   "description": "The listing points to a booking platform profile (Fresha, Booksy, Booking.com...). Every customer Google sends them pays the platform's commission or sees competitors next to them.",
+   "sellable": true
+  },
+  {
+   "key": "WEAK_SITE",
+   "label": "Weak / outdated site",
+   "label_bg": "Слаб / остарял сайт",
+   "offer": "Website redesign",
+   "offer_bg": "Нов сайт",
+   "description": "Own website, but the audit found real problems: not mobile-friendly, outdated, slow, or no clear way to call/contact. They have paid for a site before, so the sale is an upgrade, not a convincing job.",
+   "sellable": true
+  },
+  {
+   "key": "NO_BOOKING",
+   "label": "No online booking",
+   "label_bg": "Без онлайн записване",
+   "offer": "Online booking",
+   "offer_bg": "Онлайн записване",
+   "description": "A working site, but customers of this kind of business book appointments and there is no way to book online - every booking is a phone call during working hours.",
+   "sellable": true
+  },
+  {
+   "key": "WEAK_GOOGLE",
+   "label": "Weak Google profile",
+   "label_bg": "Слаб Google профил",
+   "offer": "Google profile boost",
+   "offer_bg": "Подобряване на Google профила",
+   "description": "The website is fine, but the Google listing is thin: few reviews or photos, missing hours or details. Cheapest, fastest yes - a small first deal that opens the door for more.",
+   "sellable": true
+  },
+  {
+   "key": "UNCHECKED",
+   "label": "Website not checked yet",
+   "label_bg": "Сайтът не е проверен",
+   "offer": "Check the site first",
+   "offer_bg": "Първо проверка на сайта",
+   "description": "Has an own website that hasn't been audited yet. Run the audit before calling to know what to sell.",
+   "sellable": false
+  },
+  {
+   "key": "NOT_A_FIT",
+   "label": "Not a fit",
+   "label_bg": "Не е подходящ",
+   "offer": "Skip",
+   "offer_bg": "Пропусни",
+   "description": "Good online presence already, a chain branch, closed, or too badly rated to buy. Not worth a call.",
+   "sellable": false
+  }
+ ]
 }

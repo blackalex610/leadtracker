@@ -12,13 +12,15 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enums import OPPORTUNITY_LABELS, OpportunityType
+from app.core.enums import OPPORTUNITY_LABELS, LeadCategory, OpportunityType
 from app.models import Business, Note
+from app.scoring.category import CATEGORY_INFO
 from app.services.leads import LeadFilters, apply_filters, apply_sort
 
 EXPORT_COLUMNS = [
     "Business", "Category", "Phone", "International Phone", "Address", "City", "Rating", "Reviews", "Website",
     "Website Score", "Opportunity Score", "Priority", "Opportunity Types", "Google Maps URL", "Status", "Notes",
+    "Lead Category", "Offer", "Offer Price EUR", "Close Odds %",
 ]  # fmt: skip
 
 _FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
@@ -42,6 +44,12 @@ def business_row(b: Business, notes: list[str]) -> list[str]:
         OPPORTUNITY_LABELS.get(OpportunityType(o), o) if o in OpportunityType.__members__ else o
         for o in b.opportunity_types or []
     )
+    category = b.lead_category
+    info = (
+        CATEGORY_INFO.get(LeadCategory(category))
+        if category and category in LeadCategory.__members__
+        else None
+    )
     values: list[Any] = [
         b.name,
         b.category,
@@ -59,6 +67,10 @@ def business_row(b: Business, notes: list[str]) -> list[str]:
         b.google_maps_url,
         b.status,
         " | ".join(notes),
+        info.label if info else "",
+        info.offer if info and b.deal_value else "",
+        b.deal_value or "",
+        b.close_odds if b.deal_value else "",
     ]
     return [csv_safe(v) for v in values]
 

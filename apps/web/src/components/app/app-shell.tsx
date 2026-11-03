@@ -31,8 +31,9 @@ const NAV = [
 
 function navClass({ isActive }: { isActive: boolean }) {
   return cn(
-    "flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-    isActive && "bg-accent text-foreground",
+    "relative flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+    isActive &&
+      "bg-accent text-foreground [&>svg]:text-brand md:before:absolute md:before:inset-y-1.5 md:before:-left-2 md:before:w-[3px] md:before:rounded-r md:before:bg-brand",
   );
 }
 
@@ -52,9 +53,11 @@ export function AppShell() {
   return (
     <div className="flex h-dvh flex-col md:flex-row">
       <aside className="flex shrink-0 flex-row items-center gap-1 border-b bg-sidebar px-2 py-1.5 md:w-52 md:flex-col md:items-stretch md:border-r md:border-b-0 md:px-2 md:py-3">
-        <div className="flex items-center gap-2 px-2 md:mb-4">
-          <span className="grid size-6 place-items-center rounded bg-foreground text-[11px] font-bold text-background">LT</span>
-          <span className="hidden text-[13px] font-semibold md:inline">Lead Tracker</span>
+        <div className="flex items-center gap-2 px-1 md:mb-4 md:flex-col md:items-stretch md:gap-1.5 md:px-0">
+          <span className="grid h-7 place-items-center rounded-md bg-brand-ink px-1.5 md:h-14">
+            <img src="/kov4-wordmark.png" alt="KOV4" width={146} height={61} className="h-5 w-auto md:h-11" />
+          </span>
+          <span className="hidden text-center text-[11px] font-medium text-muted-foreground md:inline">Lead Tracker</span>
         </div>
         <nav className="flex flex-1 flex-row gap-0.5 overflow-x-auto md:flex-col" aria-label="Main">
           {NAV.map((item) => (
@@ -67,7 +70,7 @@ export function AppShell() {
         <div className="flex items-center gap-1 md:flex-col md:items-stretch md:gap-2">
           <StartCallingDialog
             trigger={
-              <Button size="sm" className="md:w-full">
+              <Button size="sm" className="bg-brand text-brand-foreground hover:bg-brand-hover md:w-full">
                 <span className="hidden sm:inline">Start Calling Session</span>
                 <span className="sm:hidden">Call</span>
               </Button>

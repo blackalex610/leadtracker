@@ -6,18 +6,21 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.enums import (
     GOOGLE_OPPORTUNITIES,
     OPPORTUNITY_LABELS,
     WEBSITE_PROBLEM_OPPORTUNITIES,
+    LeadCategory,
     LeadStatus,
     OpportunityType,
     Priority,
 )
-from app.models import Business, CallAttempt, Job, WebsiteAudit
+from app.models import Business, CallAttempt, Job, LeadEvent, WebsiteAudit
+from app.scoring.category import CATEGORY_INFO, CATEGORY_ORDER, SELLABLE
+from app.services.calling import callable_conditions
 from app.services.leads import WEBSITE_PROBLEM_HEALTH, to_summary
 from app.services.settings import RuntimeSettings
 from app.services.usage import month_start, monthly_usage
@@ -73,6 +76,58 @@ async def dashboard(
             select(func.count()).where(CallAttempt.created_at >= day_start, CallAttempt.created_at < day_end)
         )
     ).scalar_one()
+
+    since_7 = now - timedelta(days=7)
+    in_play = [LeadStatus.INTERESTED.value, LeadStatus.QUALIFIED.value, LeadStatus.PROPOSAL.value]
+    won_recently = exists().where(
+        LeadEvent.business_id == Business.id,
+        LeadEvent.type == "updated",
+        LeadEvent.created_at >= since_7,
+        LeadEvent.data["status"]["to"].astext == LeadStatus.WON.value,
+    )
+    won = (
+        await session.execute(
+            select(func.coalesce(func.sum(Business.deal_value), 0), func.count()).where(
+                Business.status == LeadStatus.WON.value, won_recently
+            )
+        )
+    ).one()
+    playing = (
+        await session.execute(
+            select(func.coalesce(func.sum(Business.deal_value), 0), func.count()).where(
+                Business.status.in_(in_play)
+            )
+        )
+    ).one()
+    calls_7d = (
+        await session.execute(select(func.count()).where(CallAttempt.created_at >= since_7))
+    ).scalar_one()
+    sellable = [c.value for c in SELLABLE]
+    category_rows = (
+        await session.execute(
+            select(
+                Business.lead_category,
+                func.count(),
+                func.coalesce(func.sum(Business.deal_value), 0),
+                func.coalesce(func.sum(Business.expected_value), 0),
+            )
+            .where(*callable_conditions(), Business.status == LeadStatus.NEW.value)
+            .group_by(Business.lead_category)
+        )
+    ).all()
+    by_cat = {str(k): (int(n), int(d), int(e)) for k, n, d, e in category_rows if k}
+    by_category = [
+        {
+            "key": c.value,
+            "label": CATEGORY_INFO[c].label,
+            "count": by_cat[c.value][0],
+            "deal_value": by_cat[c.value][1],
+            "expected_value": by_cat[c.value][2],
+        }
+        for c in CATEGORY_ORDER
+        if c.value in by_cat and c != LeadCategory.NOT_A_FIT
+    ]
+    ready = [by_cat[c] for c in sellable if c in by_cat]
 
     opp_rows = (
         await session.execute(
@@ -140,16 +195,17 @@ async def dashboard(
         .scalars()
         .all()
     )
+    # The best deals nobody has called yet.
     top_hot = (
         (
             await session.execute(
                 select(Business)
                 .where(
-                    Business.priority == Priority.HOT.value,
+                    *callable_conditions(),
                     Business.call_count == 0,
-                    Business.suppressed.is_(False),
+                    Business.lead_category.in_(sellable),
                 )
-                .order_by(Business.opportunity_score.desc())
+                .order_by(Business.expected_value.desc(), Business.opportunity_score.desc())
                 .limit(8)
             )
         )
@@ -182,6 +238,18 @@ async def dashboard(
             "demo_records": kpis[11],
             "calls_today": calls_today,
         },
+        "goal": {
+            "weekly_goal": runtime.offers.weekly_goal,
+            "calls_per_day": runtime.offers.calls_per_day,
+            "won_value_7d": int(won[0]),
+            "won_count_7d": int(won[1]),
+            "in_play_value": int(playing[0]),
+            "in_play_count": int(playing[1]),
+            "calls_7d": int(calls_7d),
+            "ready_leads": sum(r[0] for r in ready),
+            "ready_expected_value": sum(r[2] for r in ready),
+        },
+        "by_category": by_category,
         "by_opportunity": by_opportunity,
         "calls_by_outcome": sorted(
             [{"key": str(k), "count": int(v)} for k, v in outcome_rows], key=lambda x: -x["count"]

@@ -3,8 +3,9 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Neutral, dense internal-tool palette. Color is reserved for meaning:
-   priority (hot/warm/cold), score health (bad/ok/good) and destructive actions. */
+/* KOV4 palette: the logo's warm black carries primary actions; KOV4 red (#CC0A1A)
+   is kept for brand marks (logo, active nav, the calling CTA, sign-in). Other color is
+   reserved for meaning: priority (hot/warm/cold), score health and destructive actions. */
 :root {
   --radius: 0.375rem;
   --background: oklch(0.995 0 0);
@@ -13,8 +14,12 @@
   --card-foreground: oklch(0.21 0.006 285.885);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.21 0.006 285.885);
-  --primary: oklch(0.21 0.006 285.885);
+  --primary: #1c160a;
   --primary-foreground: oklch(0.985 0 0);
+  --brand: #cc0a1a;
+  --brand-hover: #b00816;
+  --brand-foreground: #ffffff;
+  --brand-ink: #120e05;
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
   --muted: oklch(0.967 0.001 286.375);
@@ -25,7 +30,7 @@
   --destructive-foreground: oklch(0.985 0 0);
   --border: oklch(0.915 0.004 286.32);
   --input: oklch(0.905 0.004 286.32);
-  --ring: oklch(0.705 0.015 286.067);
+  --ring: #cc0a1a;
   --sidebar: oklch(0.975 0.001 286.375);
 
   --hot: oklch(0.55 0.2 27);
@@ -51,6 +56,10 @@
   --popover-foreground: oklch(0.955 0 0);
   --primary: oklch(0.92 0.004 286.32);
   --primary-foreground: oklch(0.21 0.006 285.885);
+  --brand: #e0182a;
+  --brand-hover: #f02a3b;
+  --brand-foreground: #ffffff;
+  --brand-ink: #120e05;
   --secondary: oklch(0.26 0.006 286.033);
   --secondary-foreground: oklch(0.955 0 0);
   --muted: oklch(0.25 0.006 286.033);
@@ -61,7 +70,7 @@
   --destructive-foreground: oklch(0.985 0 0);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.552 0.016 285.938);
+  --ring: #e0182a;
   --sidebar: oklch(0.18 0.005 285.823);
 
   --hot: oklch(0.72 0.17 25);
@@ -101,6 +110,10 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-sidebar: var(--sidebar);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-ink: var(--brand-ink);
   --color-hot: var(--hot);
   --color-hot-soft: var(--hot-soft);
   --color-warm: var(--warm);

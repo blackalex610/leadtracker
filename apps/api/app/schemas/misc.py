@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import Field, field_validator
 
-from app.core.enums import LeadStatus, OpportunityType, Priority
+from app.core.enums import LeadCategory, LeadStatus, OpportunityType, Priority
 from app.core.opening_hours import parse_hhmm
 from app.schemas.common import ORMModel, Schema
 from app.schemas.leads import LeadSummary, PitchOut, ScoreReason
@@ -23,7 +23,7 @@ class UserOut(ORMModel):
 
 
 class LoginRequest(Schema):
-    token: str = Field(min_length=10, max_length=200)
+    token: str = Field(min_length=1, max_length=200)
 
 
 class MeResponse(Schema):
@@ -31,54 +31,13 @@ class MeResponse(Schema):
     auth_mode: str
 
 
-# --- presets --------------------------------------------------------------------------
-class PresetBase(Schema):
-    label: str = Field(min_length=1, max_length=120)
-    label_bg: str | None = Field(default=None, max_length=120)
-    category_query: str = Field(min_length=2, max_length=200)
-    included_type: str | None = Field(default=None, max_length=100)
-    keywords: str | None = Field(default=None, max_length=300)
-    match_types: list[str] = Field(default_factory=list, max_length=30)
-    calling_window_start: str | None = None
-    calling_window_end: str | None = None
-    booking_oriented: bool = False
-    discovery_dependent: bool = True
-    strong_opportunities: list[OpportunityType] = Field(default_factory=list)
-    sort_order: int = 100
-
-    @field_validator("calling_window_start", "calling_window_end")
-    @classmethod
-    def _time(cls, v: str | None) -> str | None:
-        if v:
-            parse_hhmm(v)
-            return v.zfill(5)
-        return None
+# --- reset ------------------------------------------------------------------------------
+class ResetRequest(Schema):
+    confirm: str = Field(max_length=100)
 
 
-class PresetCreate(PresetBase):
-    key: str = Field(min_length=2, max_length=64, pattern=r"^[a-z0-9_]+$")
-
-
-class PresetUpdate(Schema):
-    label: str | None = Field(default=None, min_length=1, max_length=120)
-    label_bg: str | None = None
-    category_query: str | None = Field(default=None, min_length=2, max_length=200)
-    included_type: str | None = None
-    keywords: str | None = None
-    match_types: list[str] | None = None
-    calling_window_start: str | None = None
-    calling_window_end: str | None = None
-    booking_oriented: bool | None = None
-    discovery_dependent: bool | None = None
-    strong_opportunities: list[OpportunityType] | None = None
-    sort_order: int | None = None
-
-
-class PresetOut(ORMModel, PresetBase):
-    id: int
-    key: str
-    is_builtin: bool
-    lead_count: int = 0
+class ResetResult(Schema):
+    deleted: dict[str, int]
 
 
 # --- suppression ------------------------------------------------------------------------
@@ -101,13 +60,15 @@ class SuppressionOut(ORMModel):
 
 # --- calling -------------------------------------------------------------------------------
 class CallingFilters(Schema):
-    niche_key: str | None = None
+    # Empty = every category worth calling (all but NOT_A_FIT).
+    categories: list[LeadCategory] = Field(default_factory=list)
+    target_key: str | None = Field(default=None, max_length=64)
     category: str | None = Field(default=None, max_length=200)
     city: str | None = Field(default=None, max_length=120)
     window_start: str | None = None
     window_end: str | None = None
     open_today: bool = True
-    priorities: list[Priority] = Field(default_factory=lambda: [Priority.HOT, Priority.WARM])
+    priorities: list[Priority] = Field(default_factory=list)
     website: Literal["any", "none", "poor"] = "any"
     opportunity_types: list[OpportunityType] = Field(default_factory=list)
     statuses: list[LeadStatus] = Field(
@@ -223,6 +184,26 @@ class WorkerRunOut(Schema):
     on_demand: bool
 
 
+class TargetMeta(Schema):
+    key: str
+    label: str
+    label_bg: str
+    group: str
+    group_label: str
+    value_tier: int
+    booking: bool
+
+
+class CategoryMeta(Schema):
+    key: LeadCategory
+    label: str
+    label_bg: str
+    offer: str
+    offer_bg: str
+    description: str
+    sellable: bool
+
+
 class MetaOut(Schema):
     version: str
     environment: str
@@ -231,7 +212,8 @@ class MetaOut(Schema):
     provider: ProviderStatusOut
     pagespeed_configured: bool
     cities: dict[str, list[str]]
-    category_suggestions: list[str]
+    targets: list[TargetMeta]
+    lead_categories: list[CategoryMeta]
     lead_statuses: list[LeadStatus]
     call_outcomes: list[str]
     opportunity_labels: dict[str, str]

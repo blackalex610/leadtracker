@@ -16,12 +16,12 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from alembic import command
 from app.api.deps import ensure_default_user
 from app.config import Settings, get_settings
-from app.core.enums import UserRole
+from app.core.enums import JobKind, JobStatus, UserRole
 from app.core.security import hash_token
 from app.db import get_engine, get_sessionmaker
 from app.log import configure_logging, get_logger, register_secret
-from app.models import User
-from app.services.presets import seed_builtin_presets
+from app.models import Business, Job, User
+from app.worker.queue import enqueue
 
 log = get_logger(__name__)
 
@@ -93,6 +93,29 @@ async def ensure_admin(session: AsyncSession, settings: Settings) -> None:
         await session.rollback()
 
 
+async def ensure_categorized(session: AsyncSession) -> None:
+    """Leads saved before lead categories existed get one rescore job (once)."""
+    uncategorized = (
+        await session.execute(select(Business.id).where(Business.lead_category.is_(None)).limit(1))
+    ).scalar_one_or_none()
+    if uncategorized is None:
+        return
+    pending = (
+        await session.execute(
+            select(Job.id)
+            .where(
+                Job.kind == JobKind.RESCORE.value,
+                Job.status.in_([JobStatus.QUEUED.value, JobStatus.RUNNING.value]),
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if pending is None:
+        await enqueue(session, JobKind.RESCORE, {})
+        await session.commit()
+        log.info("rescore_queued_for_categories")
+
+
 async def _auth_problems(session: AsyncSession, settings: Settings) -> list[str]:
     if settings.auth_mode != "token":
         return []
@@ -110,7 +133,7 @@ async def initialise(
     settings: Settings | None = None,
     sessionmaker: async_sessionmaker[AsyncSession] | None = None,
 ) -> list[str]:
-    """Migrate (when enabled), seed built-in data and the bootstrap admin.
+    """Migrate (when enabled), create the default user and the bootstrap admin.
     Returns remaining setup problems (empty when the app is usable)."""
     settings = settings or get_settings()
     problems = settings.setup_problems()
@@ -120,13 +143,13 @@ async def initialise(
         await migrate_to_head(get_engine())
     sessionmaker = sessionmaker or get_sessionmaker()
     async with sessionmaker() as session:
-        await seed_builtin_presets(session)
         try:
             await ensure_default_user(session)
         except IntegrityError:
             await session.rollback()
         await ensure_admin(session, settings)
         problems += await _auth_problems(session, settings)
+        await ensure_categorized(session)
     for problem in problems:
         log.error("setup_problem", problem=problem)
     return problems

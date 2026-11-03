@@ -1,13 +1,13 @@
 # Lead Tracker
 
-**Prospecting software that finds local businesses in a chosen niche and area, audits their online presence, and tells a salesperson in a few seconds why each one is worth a call.**
+**Prospecting software that finds local businesses that need a website or more customers, audits their online presence, and tells a salesperson in a few seconds what to sell each one and for how much.**
 
-A user picks a niche (gyms, salons, barbers, restaurants, dentists and so on) and a location. Lead Tracker pulls matching businesses from the Google Places API, normalizes and de-duplicates their phone numbers, audits each business's website and Google listing, and ranks the results by how much the business stands to gain from what the user is selling. Every lead comes with a written explanation of its score and a suggested pitch built only from what was actually observed.
+A user picks a city and clicks once. Lead Tracker searches a built-in list of business types that most need a website (trades, auto shops, clinics, salons, venues and so on) through the Google Places API, normalizes and de-duplicates their phone numbers, audits each business's website and Google listing, sorts each lead into a category with a concrete offer and price, and ranks the results by deal value (price × close odds). Every lead comes with a written explanation of its score and a suggested pitch built only from what was actually observed.
 
 ```
-niche + location → search (Google Places API) → save & de-duplicate → normalize phones
-→ audit website → analyse Google profile → detect opportunities → score + priority
-→ review → call (keyboard-driven) → export
+city → ICP search (built-in business types, never the same query twice) → save & de-duplicate
+→ normalize phones → audit website → analyse Google profile → detect opportunities
+→ lead category (what to sell, price, odds) → call best deals first (keyboard-driven) → export
 ```
 
 It is not a scraper. Business data comes from the official Google Places API, the website auditor fetches only a handful of public pages per site and respects `robots.txt`, and every score is backed by a stored, human-readable reason.
@@ -26,11 +26,11 @@ The same pipeline works for anyone who sells to local businesses:
 |---|---|
 | SEO and digital marketing agencies | Weak Google profiles: missing hours, few photos, low review volume, category mismatches |
 | Booking, POS and payment providers | Service businesses with no online booking or only phone reservations |
-| B2B suppliers and service providers | Call lists segmented by niche, neighborhood, rating and opening hours |
-| Market research and business development | Business density, ratings and digital maturity by niche and area |
+| B2B suppliers and service providers | Call lists segmented by business type, neighborhood, rating and opening hours |
+| Market research and business development | Business density, ratings and digital maturity by business type and area |
 | Franchise and expansion planning | Competitor coverage across neighborhoods before choosing a location |
 
-The niche templates, scoring weights and pitch rules are all editable at runtime, so the tool can be pointed at a different offer without code changes.
+Offer prices, close odds, scoring weights and the weekly revenue goal are editable at runtime; the searched business types live in `apps/api/app/data/targets.py`.
 
 ---
 
@@ -65,7 +65,8 @@ The niche templates, scoring weights and pitch rules are all editable at runtime
 12. [Troubleshooting](#12-troubleshooting)
 
 Deeper docs: [`docs/architecture.md`](docs/architecture.md) ·
-[`docs/scoring.md`](docs/scoring.md) · [`docs/deployment.md`](docs/deployment.md)
+[`docs/scoring.md`](docs/scoring.md) · [`docs/deployment.md`](docs/deployment.md) ·
+[`docs/playbook.md`](docs/playbook.md) (7-day sales playbook)
 
 ---
 
@@ -73,7 +74,8 @@ Deeper docs: [`docs/architecture.md`](docs/architecture.md) ·
 
 | Area | Highlights |
 |---|---|
-| **Find Leads** | Niche templates (Gyms, Beauty, Barbers, Restaurants, Dentists, …, all editable), city + optional neighborhood split (Sofia, Plovdiv, Varna, Burgas), keywords, min rating/reviews, has-website, open during calling hours, lead quality. Live cost estimate before you search. Runs as a background job with progress, cancel and retry. |
+| **Find Leads** | No niches to pick: pick a city and a number of leads (default 150 = one day of calls) and click once. It searches 34 built-in ICP business types (trades, auto, clinics, salons, venues…) city-wide, then neighborhood by neighborhood, never repeats a query from the last 30 days, skips chains, closed and badly rated places, and stops when it has enough fresh callable leads. Live cost estimate; background job with progress, cancel and retry. |
+| **Lead categories** | Every lead gets one category = what to sell (Broken website → rescue, No website → starter site, Facebook-only → own site, New business → launch package, Booking-platform only, Weak site → redesign, No booking, Weak Google profile), a price (€129–590, premium for high-value trades) and close odds. Calls are ordered by price × odds. Prices, odds and the weekly goal are editable (Settings → Offers & goal); the dashboard tracks the 7-day revenue goal. See [`docs/scoring.md`](docs/scoring.md). |
 | **Phones** | libphonenumber normalization (`0888123456`, `+359 888 123 456`, `00359…` → `+359888123456`), type (mobile/landline), source, verification on answered calls, wrong-number flag, duplicate prevention. |
 | **Website audit** | SSRF-safe fetcher; homepage + up to 3 relevant pages (contact, booking, services, prices, about). 40+ signals across technical, mobile, conversion, content and trust, in English **and Bulgarian** (e.g. „Запази час“, „Работно време“, prices only in лв after the 2026 euro switch). **Website Health** (0–100, higher is better) and a separate **Outdated index** (0–100, higher is more outdated). |
 | **Google profile** | Missing phone/website/hours/address, review volume (as a visibility opportunity, not a verdict), few photos, category mismatch, closed status. |
@@ -179,7 +181,7 @@ Then apply migrations (creates all tables, indexes and the `pg_trgm` extension):
 cd apps/api && uv sync && uv run alembic upgrade head
 ```
 
-Built-in niche templates and a default user are seeded on first API start.
+A default user is created on first API start.
 
 ## 6. Development commands
 

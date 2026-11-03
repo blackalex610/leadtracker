@@ -28,7 +28,7 @@
    "pagespeed_enabled": false
   },
   "search": {
-   "default_max_results": 60,
+   "default_max_results": 150,
    "max_results_limit": 500,
    "provider_concurrency": 2,
    "provider_requests_per_second": 5.0,
@@ -208,6 +208,62 @@
     "restaurant",
     "car_wash"
    ]
+  },
+  "offers": {
+   "offers": {
+    "BROKEN_SITE": {
+     "price": 290,
+     "premium_price": 390,
+     "odds": 30
+    },
+    "NO_SITE": {
+     "price": 290,
+     "premium_price": 390,
+     "odds": 22
+    },
+    "SOCIAL_ONLY": {
+     "price": 290,
+     "premium_price": 390,
+     "odds": 24
+    },
+    "NEW_BUSINESS": {
+     "price": 390,
+     "premium_price": 490,
+     "odds": 22
+    },
+    "PLATFORM_ONLY": {
+     "price": 390,
+     "premium_price": 490,
+     "odds": 16
+    },
+    "WEAK_SITE": {
+     "price": 390,
+     "premium_price": 590,
+     "odds": 12
+    },
+    "NO_BOOKING": {
+     "price": 190,
+     "premium_price": 290,
+     "odds": 14
+    },
+    "WEAK_GOOGLE": {
+     "price": 129,
+     "premium_price": 149,
+     "odds": 20
+    },
+    "UNCHECKED": {
+     "price": 0,
+     "premium_price": 0,
+     "odds": 5
+    },
+    "NOT_A_FIT": {
+     "price": 0,
+     "premium_price": 0,
+     "odds": 0
+    }
+   },
+   "weekly_goal": 500,
+   "calls_per_day": 150
   }
  },
  "environment": {

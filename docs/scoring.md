@@ -73,10 +73,46 @@ Each requirement is a toggle. The written reason is stored, e.g.
 
 ## Category knowledge
 
-A lead's niche comes from the search template that found it or from its Google primary
-type matching a template's `match_types`. Templates say whether customers *book* and
-whether the category *relies on online discovery*. Without a template, the
-`strong_types` / `booking_types` lists in Settings → Scoring are used.
+There are no niche templates. "Find leads" searches a built-in list of ICP business
+types (`app/data/targets.py`: trades, auto, clinics, salons, venues, …). A lead remembers
+the target that found it (`target_key`); every target counts as discovery-dependent and
+says whether its customers *book*. Leads not found by a target (CSV imports) fall back to
+the `strong_types` / `booking_types` lists in Settings → Scoring.
+
+## Lead categories: what to sell
+
+On top of the score, every lead gets exactly one **lead category** (`app/scoring/category.py`)
+— the one offer to pitch — with a price and relative close odds. The calling queue and the
+lead list are ordered by **expected value = price × odds**, callbacks first.
+
+| Category | Picked when | Offer | Price (premium) | Odds |
+|---|---|---|---|---|
+| `BROKEN_SITE` | site doesn't load / parked / under construction | Website rescue | €290 (€390) | 30% |
+| `NO_SITE` | no website, 10+ reviews | Starter website | €290 (€390) | 22% |
+| `SOCIAL_ONLY` | listing links to Facebook/Instagram/link hub | Own website | €290 (€390) | 24% |
+| `NEW_BUSINESS` | no website, < 10 reviews | Launch package (site + Google profile) | €390 (€490) | 22% |
+| `PLATFORM_ONLY` | listing links to Fresha/Booksy/Booking.com… | Own site + direct booking | €390 (€490) | 16% |
+| `WEAK_SITE` | audit: low health, not mobile, outdated, no CTA, slow | Website redesign | €390 (€590) | 12% |
+| `NO_BOOKING` | working site, booking business, no online booking | Online booking | €190 (€290) | 14% |
+| `WEAK_GOOGLE` | site fine, Google listing thin (reviews/photos/hours) | Google profile boost | €129 (€149) | 20% |
+| `UNCHECKED` | own site not audited yet | — | — | — |
+| `NOT_A_FIT` | good presence, chain branch, closed, rated < 3.5★ | skip | — | — |
+
+Premium prices apply to `value_tier` 3 targets (one customer is worth a lot: trades,
+dentists, event halls, driving schools, guest houses). Odds move with fit: +4/+6 for 30+/100+
+reviews, +2 for ≥ 4.5★, +4 for a mobile number (the owner answers), −2 for a landline,
+−4 for under 5 reviews; a lead without a working phone gets 0. Prices, premium prices,
+odds, the weekly revenue goal and calls per day are editable in **Settings → Offers & goal**
+(then "Re-price existing leads").
+
+## Find leads (the ICP search)
+
+One click plans queries `"<target query> в <city>"` for every target, then
+`"<target query> в <neighborhood>, <city>"`, skipping any query that ran successfully in the
+last 30 days, and stops when it has the requested number of **fresh** leads. A lead counts
+when it is new to the database, has a working phone, isn't on the do-not-contact list and
+isn't `NOT_A_FIT`; an own website still to be audited counts half (many turn out fine).
+After the audit, leads whose site turns out good drop out of the results.
 
 ## Wording
 

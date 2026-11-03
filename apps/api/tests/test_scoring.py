@@ -6,21 +6,16 @@ import pytest
 
 from app.core.enums import OpportunityType as O
 from app.core.enums import Priority
+from app.data.targets import TARGETS_BY_KEY, Target
 from app.scoring.config import RuleKey, ScoringConfig, ScoringRule
 from app.scoring.data_quality import data_quality
 from app.scoring.engine import calculate_opportunity_score
 from app.scoring.google_profile import analyze_google_profile
-from app.scoring.inputs import AuditSnapshot, NicheInfo, ScoringInput
+from app.scoring.inputs import AuditSnapshot, ScoringInput
 from app.scoring.pitch import build_pitch
 
-NAILS = NicheInfo(
-    key="nail_salons",
-    label="Nail salons",
-    label_bg="маникюрни салони",
-    booking_oriented=True,
-    match_types=["nail_salon"],
-)
-CAFES = NicheInfo(key="cafes", label="Cafes", booking_oriented=False, match_types=["cafe"])
+NAILS = TARGETS_BY_KEY["nail_salons"]
+CAFES = Target("cafes", "Cafes", "кафенета", "кафене", "food", 1, booking=False, match_types=("cafe",))
 HOURS = {
     "periods": [
         {"open": {"day": d, "hour": 9, "minute": 0}, "close": {"day": d, "hour": 21, "minute": 0}}
@@ -36,7 +31,7 @@ def make_input(**overrides: Any) -> ScoringInput:
         "primary_type": "nail_salon",
         "types": ["nail_salon"],
         "city": "Sofia",
-        "niche": NAILS,
+        "target": NAILS,
         "has_phone": True,
         "website_url": None,
         "rating": 4.8,
@@ -148,7 +143,7 @@ def test_no_booking_only_for_booking_oriented_categories() -> None:
         "website_status": "ok",
         "audit": audit(health=85, codes=["no_booking"]),
     }
-    cafe = calculate_opportunity_score(make_input(niche=CAFES, primary_type="cafe", **site), ScoringConfig())
+    cafe = calculate_opportunity_score(make_input(target=CAFES, primary_type="cafe", **site), ScoringConfig())
     nails = calculate_opportunity_score(make_input(**site), ScoringConfig())
     assert O.NO_BOOKING not in cafe.opportunities
     assert O.NO_BOOKING in nails.opportunities
@@ -185,8 +180,10 @@ def test_closed_business_is_cold() -> None:
 
 
 def test_weak_category_caps_at_warm() -> None:
-    weak = NicheInfo(key="x", label="Warehouses", booking_oriented=False, discovery_dependent=False)
-    result = calculate_opportunity_score(make_input(niche=weak), ScoringConfig())
+    result = calculate_opportunity_score(
+        make_input(target=None, primary_type="storage", types=["storage"], category="Warehouse"),
+        ScoringConfig(),
+    )
     assert result.priority == Priority.WARM
     assert "category not discovery-dependent" in result.priority_reason
 

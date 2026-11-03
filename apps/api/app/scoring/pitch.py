@@ -9,6 +9,7 @@ from typing import Any
 
 from app.core.enums import OpportunityType
 from app.core.text import domain_of
+from app.scoring.category import CATEGORY_INFO, CategoryResult
 from app.scoring.engine import ScoreResult
 from app.scoring.inputs import ScoringInput
 
@@ -58,6 +59,9 @@ class Pitch:
     text: str
     primary_opportunity: str | None
     talking_points: list[str] = field(default_factory=list)
+    offer: str | None = None
+    price: int | None = None
+    ask: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -65,6 +69,9 @@ class Pitch:
             "text": self.text,
             "primary_opportunity": self.primary_opportunity,
             "talking_points": self.talking_points,
+            "offer": self.offer,
+            "price": self.price,
+            "ask": self.ask,
         }
 
 
@@ -75,10 +82,8 @@ def _join(items: list[str], conj: str) -> str:
 
 
 def _category_phrase(inp: ScoringInput, lang: str) -> str:
-    if inp.niche:
-        if lang == "bg":
-            return inp.niche.label_bg or "местни бизнеси"
-        return inp.niche.label.lower()
+    if inp.target:
+        return inp.target.label_bg if lang == "bg" else inp.target.label.lower()
     return "местни бизнеси" if lang == "bg" else "local businesses"
 
 
@@ -91,7 +96,9 @@ def _top_issues(result: ScoreResult, inp: ScoringInput, n: int = 2) -> list[str]
     return [str(s["label"]).lower() for s in ranked[:n]]
 
 
-def build_pitch(inp: ScoringInput, result: ScoreResult, language: str = "en") -> Pitch:
+def build_pitch(
+    inp: ScoringInput, result: ScoreResult, language: str = "en", offer: CategoryResult | None = None
+) -> Pitch:
     lang = "bg" if language == "bg" else "en"
     primary = next((o for o in PITCH_ORDER if o in result.opportunities), None)
     city = inp.city or ("София" if lang == "bg" else "Sofia")
@@ -116,18 +123,42 @@ def build_pitch(inp: ScoringInput, result: ScoreResult, language: str = "en") ->
     observation, value = _observation_and_value(primary, inp, result, lang)
     if observation:
         parts.append(observation)
-    if value:
+    info = CATEGORY_INFO[offer.category] if offer else None
+    offer_line = (info.offer_line if lang == "en" else info.offer_line_bg) if info else ""
+    ask = (info.ask if lang == "en" else info.ask_bg) if info else ""
+    if offer and offer_line and offer.deal_value:
+        parts.append(
+            f"{offer_line}, for €{offer.deal_value}."
+            if lang == "en"
+            else f"{offer_line}, за {offer.deal_value} €."
+        )
+    elif value:
         parts.append(value)
     parts.append(
-        "Would you be open to a quick 10-minute chat this week?"
-        if lang == "en"
-        else "Имате ли 10 минути тази седмица за кратък разговор?"
+        ask
+        or (
+            "Would you be open to a quick 10-minute chat this week?"
+            if lang == "en"
+            else "Имате ли 10 минути тази седмица за кратък разговор?"
+        )
     )
 
     talking_points = [r.text for r in result.reasons if r.opportunity is not None]
     if audit and audit.facts.get("booking_providers"):
         talking_points.append("Already uses: " + ", ".join(audit.facts["booking_providers"]))
-    return Pitch(lang, " ".join(parts), primary.value if primary else None, talking_points)
+    if offer:
+        talking_points.extend(f"Upsell: {u}" for u in offer.upsells)
+    return Pitch(
+        lang,
+        " ".join(parts),
+        primary.value if primary else None,
+        talking_points,
+        offer=(
+            (info.offer if lang == "en" else info.offer_bg) if info and offer and offer.deal_value else None
+        ),
+        price=offer.deal_value if offer and offer.deal_value else None,
+        ask=ask or None,
+    )
 
 
 def _observation_and_value(

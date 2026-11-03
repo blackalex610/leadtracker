@@ -3,7 +3,7 @@ from app.models.audit import WebsiteAudit
 from app.models.base import Base
 from app.models.business import Business, BusinessContact, BusinessSource
 from app.models.jobs import Job, JobBusiness, SearchQuery
-from app.models.system import ApiUsage, AppSetting, ImportBatch, NichePreset, ProviderCache
+from app.models.system import ApiUsage, AppSetting, ImportBatch, ProviderCache
 from app.models.user import User
 
 __all__ = [
@@ -19,7 +19,6 @@ __all__ = [
     "Job",
     "JobBusiness",
     "LeadEvent",
-    "NichePreset",
     "Note",
     "ProviderCache",
     "SearchQuery",

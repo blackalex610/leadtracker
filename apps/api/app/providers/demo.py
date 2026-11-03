@@ -16,6 +16,7 @@ import hashlib
 import re
 from typing import Any
 
+from app.data.targets import TARGETS
 from app.providers.base import BusinessSearchResult, ProviderNotFoundError, ProviderPlace, SearchParams
 
 PROVIDER_NAME = "demo"
@@ -68,7 +69,8 @@ def _h(*parts: str) -> int:
 
 
 def _parse_query(text: str) -> tuple[str, str]:
-    match = re.match(r"^(.*?)\s+in\s+(.+)$", text.strip(), flags=re.I)
+    # "ключар в Varna" (ICP searches) or "gyms in Sofia"
+    match = re.match(r"^(.*?)\s+(?:in|в)\s+(.+)$", text.strip(), flags=re.I)
     if match:
         return match.group(1).strip(), match.group(2).strip()
     return text.strip(), "Sofia"
@@ -76,6 +78,9 @@ def _parse_query(text: str) -> tuple[str, str]:
 
 def _category(category: str) -> tuple[str, str]:
     lowered = category.lower()
+    for target in TARGETS:
+        if target.query.lower() == lowered:
+            return target.label, target.match_types[0] if target.match_types else "establishment"
     for word, value in _CATEGORY_WORDS.items():
         if word in lowered:
             return value

@@ -44,7 +44,8 @@ class Business(TimestampMixin, Base):
     subcategory: Mapped[str | None] = mapped_column(String(200))
     primary_type: Mapped[str | None] = mapped_column(String(100))
     types: Mapped[list[str]] = mapped_column(ARRAY(String(100)), default=list, server_default="{}")
-    niche_key: Mapped[str | None] = mapped_column(String(64), index=True)
+    # ICP target (app.data.targets) whose search found this business
+    target_key: Mapped[str | None] = mapped_column(String(64), index=True)
     description: Mapped[str | None] = mapped_column(Text)
 
     # --- location -------------------------------------------------------------
@@ -110,6 +111,15 @@ class Business(TimestampMixin, Base):
     booking_oriented: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     strong_category: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     open_in_calling_window: Mapped[bool | None] = mapped_column(Boolean)
+
+    # --- lead category: what to sell (app.scoring.category) ----------------------------
+    lead_category: Mapped[str | None] = mapped_column(String(20), index=True)
+    deal_value: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    close_odds: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")
+    # deal_value x close_odds: the calling queue is ordered by this
+    expected_value: Mapped[int] = mapped_column(Integer, default=0, server_default="0", index=True)
+    category_reason: Mapped[str | None] = mapped_column(Text)
+    category_details: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
     scored_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # --- lead workflow ------------------------------------------------------------

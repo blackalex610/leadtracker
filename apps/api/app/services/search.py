@@ -1,9 +1,12 @@
-"""Search job pipeline:
+"""Find-leads job pipeline. There are no niches to pick - the ICP target list decides:
 
-    provider search (paged, cached) → save/dedupe businesses → phone normalization
-    → score → website audits (bounded concurrency) → re-score → done
+    plan (ICP targets x city, then neighborhoods, minus queries run recently)
+    → provider search (paged, cached) → save/dedupe businesses → phone normalization
+    → score + categorize → ICP gate → website audits (bounded concurrency)
+    → re-score/re-categorize → done
 
-One failing website or query never fails the whole job; the job ends
+The job stops as soon as it has the requested number of fresh, callable ICP
+leads. One failing website or query never fails the whole job; the job ends
 ``completed``, ``partial`` (some errors), ``failed`` (nothing usable) or
 ``cancelled``.
 """
@@ -12,19 +15,21 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from dataclasses import dataclass
-from typing import Any, Literal
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
-from pydantic import BaseModel, Field, field_validator, model_validator
-from sqlalchemy import select
+from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.audit.factory import build_auditor
-from app.core.enums import JobStatus
-from app.core.opening_hours import open_in_window_on_weekdays, parse_hhmm
+from app.core.enums import JobStatus, LeadCategory, LeadStatus
+from app.data.locations import CITIES
+from app.data.targets import TARGETS, TARGETS_BY_KEY
 from app.log import get_logger
-from app.models import Business, JobBusiness, NichePreset, SearchQuery
+from app.models import Business, JobBusiness, SearchQuery
 from app.providers.base import (
     ProviderAuthError,
     ProviderError,
@@ -34,10 +39,8 @@ from app.providers.base import (
     SearchParams,
 )
 from app.providers.registry import get_provider
-from app.scoring.inputs import NicheInfo
 from app.services.audits import needs_audit, persist_audit, run_audit
 from app.services.businesses import record_from_place, upsert_business
-from app.services.presets import load_niches
 from app.services.provider_gateway import ProviderGateway
 from app.services.scoring_service import booking_expected, rescore_business
 from app.services.settings import RuntimeSettings, load_settings
@@ -52,115 +55,102 @@ FATAL_PROVIDER_ERRORS = (
     ProviderQuotaError,
 )
 PAGE_SIZE = 20
+PAGES_PER_QUERY = 3  # Text Search returns at most 60 results per query
+# A query that ran this recently would return the same businesses again: skip it.
+ROTATION_DAYS = 30
 
 
 class SearchRequest(BaseModel):
-    """Parameters of a search job (also the POST /api/search body)."""
+    """Parameters of a find-leads job (also the POST /api/search body)."""
 
-    category: str = Field(min_length=2, max_length=120)
-    location: str = Field(min_length=2, max_length=120)
-    neighborhoods: list[str] = Field(default_factory=list, max_length=60)
-    keywords: str | None = Field(default=None, max_length=120)
-    preset_key: str | None = Field(default=None, max_length=64)
-    min_rating: float | None = Field(default=4.0, ge=0, le=5)
-    min_reviews: int | None = Field(default=None, ge=0)
-    max_reviews: int | None = Field(default=None, ge=0)
-    has_website: Literal["any", "yes", "no"] = "any"
-    open_in_window: bool = False
-    window_start: str | None = None
-    window_end: str | None = None
-    lead_quality: Literal["any", "high", "medium", "low"] = "any"
-    max_results: int = Field(default=60, ge=1, le=2000)
+    location: str = Field(default="Sofia", min_length=2, max_length=120)
+    target_leads: int = Field(default=150, ge=1, le=2000, description="Fresh ICP leads to find")
+    max_queries: int = Field(default=30, ge=1, le=200, description="Cost cap: provider queries at most")
+    use_neighborhoods: bool = Field(
+        default=True, description="Search neighborhood by neighborhood once city-wide queries are used up"
+    )
     audit_websites: bool = True
     country: str | None = Field(default=None, min_length=2, max_length=2)
     language: str | None = Field(default=None, max_length=10)
 
-    @field_validator("category", "location", "keywords")
+    @field_validator("location")
     @classmethod
-    def _strip(cls, v: str | None) -> str | None:
-        return v.strip() if isinstance(v, str) else v
-
-    @field_validator("neighborhoods")
-    @classmethod
-    def _clean_neighborhoods(cls, v: list[str]) -> list[str]:
-        return list(dict.fromkeys(n.strip() for n in v if n and n.strip()))
-
-    @field_validator("window_start", "window_end")
-    @classmethod
-    def _time(cls, v: str | None) -> str | None:
-        if v:
-            parse_hhmm(v)
-        return v
-
-    @model_validator(mode="after")
-    def _reviews_range(self) -> SearchRequest:
-        if (
-            self.min_reviews is not None
-            and self.max_reviews is not None
-            and self.min_reviews > self.max_reviews
-        ):
-            raise ValueError("min_reviews cannot be greater than max_reviews")
-        return self
+    def _strip(cls, v: str) -> str:
+        return v.strip()
 
 
 @dataclass(slots=True)
 class PlannedQuery:
     text: str
     location: str
+    target_key: str
 
 
-def plan_queries(req: SearchRequest) -> list[PlannedQuery]:
-    base = req.category if not req.keywords else f"{req.category} {req.keywords}"
-    locations = [f"{n}, {req.location}" for n in req.neighborhoods] or [req.location]
-    seen: dict[str, PlannedQuery] = {}
-    for loc in locations:
-        text = f"{base} in {loc}"
-        seen.setdefault(text.lower(), PlannedQuery(text=text, location=loc))
-    return list(seen.values())
+def canonical_city(location: str) -> str:
+    return next((c for c in CITIES if c.lower() == location.strip().lower()), location.strip())
 
 
-def estimate_requests(req: SearchRequest) -> dict[str, int]:
-    queries = plan_queries(req)
-    per_query_pages = min(3, -(-req.max_results // PAGE_SIZE))  # Text Search returns at most 60 results
-    max_requests = min(len(queries) * per_query_pages, -(-req.max_results // PAGE_SIZE) + len(queries) - 1)
-    return {"queries": len(queries), "max_requests": max(1, max_requests)}
+def candidate_queries(req: SearchRequest) -> list[PlannedQuery]:
+    """Every ICP target city-wide first, then neighborhood by neighborhood."""
+    city = canonical_city(req.location)
+    areas = [city]
+    if req.use_neighborhoods:
+        areas += [f"{n}, {city}" for n in CITIES.get(city, [])]
+    return [PlannedQuery(f"{t.query} в {area}", area, t.key) for area in areas for t in TARGETS]
 
 
-def matches_filters(business: Business, req: SearchRequest, window: tuple[str, str]) -> bool:
-    if (
-        req.min_rating is not None
-        and req.min_rating > 0
-        and (business.rating is None or business.rating < req.min_rating)
-    ):
-        return False
-    if req.min_reviews is not None and (business.review_count or 0) < req.min_reviews:
-        return False
-    if req.max_reviews is not None and (business.review_count or 0) > req.max_reviews:
-        return False
-    has_own_site = bool(business.website_url) and business.website_kind == "own"
-    if req.has_website == "yes" and not has_own_site:
-        return False
-    if req.has_website == "no" and has_own_site:
-        return False
-    if req.open_in_window:
-        periods = (business.opening_hours or {}).get("periods")
-        if not open_in_window_on_weekdays(periods, window[0], window[1], min_days=1):
-            return False
-    return True
+async def recent_query_texts(session: AsyncSession, now: datetime | None = None) -> set[str]:
+    since = (now or datetime.now(UTC)) - timedelta(days=ROTATION_DAYS)
+    rows = await session.execute(
+        select(func.lower(SearchQuery.text_query)).where(
+            SearchQuery.status == "ok", SearchQuery.created_at >= since
+        )
+    )
+    return set(rows.scalars())
 
 
-async def _preset(session: AsyncSession, key: str | None) -> NichePreset | None:
-    if not key:
-        return None
-    return (await session.execute(select(NichePreset).where(NichePreset.key == key))).scalar_one_or_none()
+async def plan_queries(session: AsyncSession, req: SearchRequest) -> list[PlannedQuery]:
+    recent = await recent_query_texts(session)
+    fresh = [q for q in candidate_queries(req) if q.text.lower() not in recent]
+    return fresh[: req.max_queries]
 
 
-def _search_checkpoint(ctx: JobContext, next_query: int, found_ids: set[int], to_audit: list[int]) -> None:
+def estimate_requests(planned: int) -> dict[str, int]:
+    return {"queries": planned, "max_requests": planned * PAGES_PER_QUERY}
+
+
+def icp_reject_reason(business: Business) -> str | None:
+    """Why a business is not a callable ICP lead (None = it is one)."""
+    if not business.normalized_phone or business.phone_invalid:
+        return "no_phone"
+    if business.suppressed or business.status == LeadStatus.DO_NOT_CONTACT.value:
+        return "do_not_contact"
+    if business.lead_category == LeadCategory.NOT_A_FIT.value:
+        return "not_a_fit"
+    return None
+
+
+def _lead_weight(business: Business) -> float:
+    """How surely a lead counts toward the target before its website is audited:
+    a site still to be checked often turns out fine, so it counts half."""
+    return 0.5 if business.lead_category == LeadCategory.UNCHECKED.value else 1.0
+
+
+def _search_checkpoint(
+    ctx: JobContext,
+    plan: list[PlannedQuery],
+    next_query: int,
+    found_ids: set[int],
+    to_audit: list[int],
+    leads: float,
+) -> None:
     ctx.checkpoint = {
         "phase": "search",
+        "plan": [asdict(q) for q in plan],
         "next_query": next_query,
         "found_ids": sorted(found_ids),
         "to_audit": list(to_audit),
+        "leads": leads,
     }
 
 
@@ -168,46 +158,49 @@ async def run_search_job(ctx: JobContext) -> JobOutcome:
     """Resumable: a time-boxed run stops between queries (search phase) or between
     audits (audit phase) and continues from ``ctx.checkpoint`` on the next run."""
     req = SearchRequest.model_validate(ctx.params)
+    checkpoint = dict(ctx.checkpoint)
     async with ctx.sessionmaker() as session:
         runtime = await load_settings(session, use_cache=False)
-        niches = await load_niches(session)
-        preset = await _preset(session, req.preset_key)
-    window = (
-        req.window_start or (preset.calling_window_start if preset else None) or runtime.calling.window_start,
-        req.window_end or (preset.calling_window_end if preset else None) or runtime.calling.window_end,
-    )
-    queries = plan_queries(req)
-    checkpoint = dict(ctx.checkpoint)
+        if "plan" in checkpoint:
+            plan = [PlannedQuery(**q) for q in checkpoint["plan"]]
+        else:
+            plan = await plan_queries(session, req)
     phase = checkpoint.get("phase", "search")
     next_query = int(checkpoint.get("next_query", 0))
     found_ids: set[int] = {int(i) for i in checkpoint.get("found_ids", [])}
     to_audit: list[int] = [int(i) for i in checkpoint.get("to_audit", [])]
+    leads = float(checkpoint.get("leads", 0))
     if ctx.resumed:
         log.info("search_job_resumed", job_id=ctx.job_id, phase=phase, next_query=next_query)
     else:
-        log.info("search_job_started", job_id=ctx.job_id, category=req.category, location=req.location)
-        ctx.counters.update({"queries_planned": len(queries)})
+        log.info("search_job_started", job_id=ctx.job_id, location=req.location, planned=len(plan))
+        ctx.counters.update({"queries_planned": len(plan), "target_leads": req.target_leads})
         ctx.total = 0
+        if not plan:
+            ctx.add_error(
+                "no_fresh_queries",
+                f"Every search for {req.location} already ran in the last {ROTATION_DAYS} days. "
+                "Try another city, or call the leads you already have.",
+            )
+            return JobOutcome(JobStatus.COMPLETED, {"found": 0})
 
     fatal: ProviderError | None = None
     try:
         if phase == "search":
             provider = get_provider(runtime.search.provider_requests_per_second)
             gateway = ProviderGateway(provider, ctx.sessionmaker)
-            _search_checkpoint(ctx, next_query, found_ids, to_audit)
+            _search_checkpoint(ctx, plan, next_query, found_ids, to_audit, leads)
             await ctx.flush("searching")
-            for index in range(next_query, len(queries)):
-                planned = queries[index]
-                if len(found_ids) >= req.max_results:
+            for index in range(next_query, len(plan)):
+                planned = plan[index]
+                if leads >= req.target_leads:
                     break
                 await ctx.check_cancelled()
-                _search_checkpoint(ctx, index, found_ids, to_audit)
+                _search_checkpoint(ctx, plan, index, found_ids, to_audit, leads)
                 if index > next_query:
                     ctx.check_time()
                 try:
-                    await _run_query(
-                        ctx, gateway, planned, req, runtime, niches, preset, window, found_ids, to_audit
-                    )
+                    leads = await _run_query(ctx, gateway, planned, req, runtime, found_ids, to_audit, leads)
                 except FATAL_PROVIDER_ERRORS as exc:
                     fatal = exc
                     break
@@ -221,7 +214,7 @@ async def run_search_job(ctx: JobContext) -> JobOutcome:
         if fatal is None and to_audit and req.audit_websites and runtime.search.audit_after_search:
             ctx.checkpoint = {"phase": "audit", "found": found_count, "to_audit": to_audit}
             await ctx.flush("auditing")
-            await audit_businesses(ctx, to_audit, runtime, niches, force=False)
+            await audit_businesses(ctx, to_audit, runtime, force=False)
     except JobCancelled:
         await ctx.flush("cancelled")
         return JobOutcome(JobStatus.CANCELLED, {"found": len(found_ids) or int(checkpoint.get("found", 0))})
@@ -244,31 +237,28 @@ async def _run_query(
     planned: PlannedQuery,
     req: SearchRequest,
     runtime: RuntimeSettings,
-    niches: list[NicheInfo],
-    preset: NichePreset | None,
-    window: tuple[str, str],
     found_ids: set[int],
     to_audit: list[int],
-) -> None:
+    leads: float,
+) -> float:
+    target = TARGETS_BY_KEY.get(planned.target_key)
+    region = (req.country or runtime.general.default_country).upper()
     params = SearchParams(
         text_query=planned.text,
-        region_code=(req.country or runtime.general.default_country).upper(),
+        region_code=region,
         language_code=req.language or runtime.general.provider_language,
-        min_rating=req.min_rating,
-        included_type=preset.included_type if preset else None,
+        included_type=target.included_type if target else None,
         page_size=PAGE_SIZE,
     )
-    remaining = req.max_results - len(found_ids)
     pages = 0
     results = 0
     cached = False
     error: ProviderError | None = None
-    region = (req.country or runtime.general.default_country).upper()
     try:
         async with contextlib.aclosing(
             gateway.iter_search(
                 params,
-                max_results=min(60, max(remaining, 1)),
+                max_results=PAGE_SIZE * PAGES_PER_QUERY,
                 cache_ttl_hours=runtime.search.cache_ttl_hours,
                 job_id=ctx.job_id,
             )
@@ -277,27 +267,15 @@ async def _run_query(
                 pages += 1
                 cached = page.cached
                 results += len(page.places)
-                if page.cached:
-                    ctx.incr("cached_requests")
-                else:
-                    ctx.incr("api_requests")
-                await _save_page(
-                    ctx,
-                    page.places,
-                    req,
-                    runtime,
-                    niches,
-                    preset,
-                    window,
-                    region,
-                    planned.text,
-                    found_ids,
-                    to_audit,
+                ctx.incr("cached_requests" if page.cached else "api_requests")
+                leads = await _save_page(
+                    ctx, page.places, req, runtime, planned, region, found_ids, to_audit, leads
                 )
                 ctx.checkpoint["found_ids"] = sorted(found_ids)
                 ctx.checkpoint["to_audit"] = list(to_audit)
+                ctx.checkpoint["leads"] = leads
                 await ctx.flush()
-                if len(found_ids) >= req.max_results:
+                if leads >= req.target_leads:
                     break
                 await ctx.check_cancelled()
         ctx.incr("queries_ok")
@@ -320,6 +298,7 @@ async def _run_query(
                 )
             )
             await session.commit()
+    return leads
 
 
 async def _save_page(
@@ -327,23 +306,21 @@ async def _save_page(
     places: list[Any],
     req: SearchRequest,
     runtime: RuntimeSettings,
-    niches: list[NicheInfo],
-    preset: NichePreset | None,
-    window: tuple[str, str],
+    planned: PlannedQuery,
     region: str,
-    query_text: str,
     found_ids: set[int],
     to_audit: list[int],
-) -> None:
+    leads: float,
+) -> float:
     async with ctx.sessionmaker() as session:
         for place in places:
-            if len(found_ids) >= req.max_results:
+            if leads >= req.target_leads:
                 break
             outcome = await upsert_business(
                 session,
                 record_from_place(place),
                 default_region=region,
-                niche_key=preset.key if preset else None,
+                target_key=planned.target_key,
                 user_id=ctx.created_by_id,
             )
             business = outcome.business
@@ -352,9 +329,17 @@ async def _save_page(
                 continue
             found_ids.add(business.id)
             ctx.total += 1
+            await rescore_business(session, business, runtime)
+            # Only businesses new to the database count: known ones are already in the lead list.
+            reject = icp_reject_reason(business) if outcome.created else "already_known"
+            matched = reject is None
             ctx.incr("new" if outcome.created else "existing")
-            matched = matches_filters(business, req, window)
-            ctx.incr("matched" if matched else "filtered_out")
+            if matched:
+                ctx.incr("matched")
+                leads += _lead_weight(business)
+            else:
+                ctx.incr("filtered_out")
+                ctx.incr(f"rejected_{reject}")
             await session.execute(
                 pg_insert(JobBusiness)
                 .values(
@@ -362,11 +347,10 @@ async def _save_page(
                     business_id=business.id,
                     is_new=outcome.created,
                     matched_filters=matched,
-                    query=query_text[:500],
+                    query=planned.text[:500],
                 )
                 .on_conflict_do_nothing()
             )
-            await rescore_business(session, business, runtime, niches)
             if (
                 matched
                 and req.audit_websites
@@ -379,13 +363,30 @@ async def _save_page(
                     ctx.incr("audit_cached")
                 ctx.processed += 1
         await session.commit()
+    return leads
+
+
+async def _drop_if_out(session: AsyncSession, ctx: JobContext, business: Business) -> None:
+    """After an audit: a lead whose site turned out fine leaves the job's results."""
+    if icp_reject_reason(business) is None:
+        return
+    dropped = await session.execute(
+        update(JobBusiness)
+        .where(
+            JobBusiness.job_id == ctx.job_id,
+            JobBusiness.business_id == business.id,
+            JobBusiness.matched_filters.is_(True),
+        )
+        .values(matched_filters=False)
+    )
+    if getattr(dropped, "rowcount", 0):
+        ctx.incr("dropped_after_audit")
 
 
 async def audit_businesses(
     ctx: JobContext,
     business_ids: list[int],
     runtime: RuntimeSettings,
-    niches: list[NicheInfo],
     *,
     force: bool,
 ) -> None:
@@ -412,7 +413,7 @@ async def audit_businesses(
                         ctx.processed += 1
                         ctx.incr("audit_cached")
                     return
-                expected = booking_expected(business, niches, runtime)
+                expected = booking_expected(business, runtime)
                 website = business.website_url
                 country = business.country_code or runtime.general.default_country
             try:
@@ -424,7 +425,8 @@ async def audit_businesses(
                     if business is None:
                         return
                     audit = await persist_audit(session, business, result, job_id=ctx.job_id)
-                    await rescore_business(session, business, runtime, niches, audit=audit)
+                    await rescore_business(session, business, runtime, audit=audit)
+                    await _drop_if_out(session, ctx, business)
                     await session.commit()
                 async with lock:
                     ctx.incr("audited")
@@ -459,13 +461,12 @@ async def run_audit_job(ctx: JobContext) -> JobOutcome:
     force = bool(ctx.params.get("force", True))
     async with ctx.sessionmaker() as session:
         runtime = await load_settings(session, use_cache=False)
-        niches = await load_niches(session)
     if not ctx.resumed:
         ctx.total = len(ids)
     ctx.checkpoint = {"to_audit": ids}
     await ctx.flush("auditing")
     try:
-        await audit_businesses(ctx, ids, runtime, niches, force=force)
+        await audit_businesses(ctx, ids, runtime, force=force)
     except JobCancelled:
         return JobOutcome(JobStatus.CANCELLED)
     return JobOutcome(JobStatus.COMPLETED)
@@ -476,7 +477,6 @@ async def run_rescore_job(ctx: JobContext) -> JobOutcome:
     after_id = int(ctx.checkpoint.get("after_id", 0))
     async with ctx.sessionmaker() as session:
         runtime = await load_settings(session, use_cache=False)
-        niches = await load_niches(session)
         query = select(Business.id).where(Business.id > after_id).order_by(Business.id)
         if ids:
             query = query.where(Business.id.in_(ids))
@@ -495,7 +495,7 @@ async def run_rescore_job(ctx: JobContext) -> JobOutcome:
                 (await session.execute(select(Business).where(Business.id.in_(batch)))).scalars().all()
             )
             for business in businesses:
-                await rescore_business(session, business, runtime, niches)
+                await rescore_business(session, business, runtime)
             await session.commit()
         ctx.processed += len(batch)
         ctx.checkpoint = {"after_id": batch[-1]}

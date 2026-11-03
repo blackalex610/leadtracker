@@ -24,12 +24,13 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       output: {
+        // React, Radix and the remaining vendor code share one chunk: split apart they
+        // import each other in a cycle (react → radix → vendor → react) and the app
+        // crashes on load with "Cannot access 'X' before initialization".
         manualChunks(id) {
           if (!id.includes("node_modules")) return undefined;
-          if (/[\\/](react|react-dom|scheduler|react-router)[\\/]/.test(id)) return "react";
           if (id.includes("@tanstack")) return "query";
           if (/(react-hook-form|zod|@hookform)/.test(id)) return "forms";
-          if (id.includes("radix") || id.includes("floating-ui")) return "radix";
           if (id.includes("lucide")) return "icons";
           return "vendor";
         },

@@ -16,7 +16,7 @@ from app.providers.base import ProviderNotConfiguredError
 from app.providers.registry import get_provider, provider_status
 from app.schemas.common import Page
 from app.schemas.jobs import JobOut, SearchEstimate, SearchJobDetail, SearchQueryOut
-from app.services.search import SearchRequest, estimate_requests
+from app.services.search import SearchRequest, estimate_requests, plan_queries
 from app.services.settings import load_settings
 from app.services.usage import monthly_usage
 from app.worker.queue import enqueue
@@ -41,7 +41,7 @@ def _require_provider() -> None:
 async def estimate(body: SearchRequest, session: SessionDep, _user: CurrentUser) -> SearchEstimate:
     runtime = await load_settings(session)
     status_info = provider_status()
-    counts = estimate_requests(body)
+    counts = estimate_requests(len(await plan_queries(session, body)))
     sku: str | None = None
     try:
         sku = get_provider().search_sku if status_info["configured"] else None
@@ -80,12 +80,12 @@ async def estimate(body: SearchRequest, session: SessionDep, _user: CurrentUser)
 async def create_search(body: SearchRequest, session: SessionDep, user: CurrentUser) -> JobOut:
     _require_provider()
     runtime = await load_settings(session)
-    if body.max_results > runtime.search.max_results_limit:
+    if body.target_leads > runtime.search.max_results_limit:
         raise HTTPException(
             status_code=422,
             detail={
                 "code": "max_results_exceeded",
-                "message": f"max_results is limited to {runtime.search.max_results_limit} (Settings → Search)",
+                "message": f"Leads per search is limited to {runtime.search.max_results_limit} (Settings → Search)",
             },
         )
     job = await enqueue(session, JobKind.SEARCH, body.model_dump(mode="json"), created_by_id=user.id)

@@ -7,11 +7,15 @@ import { fixtures } from "./fixtures";
 export const defaultHandlers = [
   http.get("*/api/auth/me", () => HttpResponse.json({ user: fixtures.user, auth_mode: "none" })),
   http.get("*/api/meta", () => HttpResponse.json(fixtures.meta)),
-  http.get("*/api/presets", () => HttpResponse.json(fixtures.presets)),
   http.get("*/api/settings", () => HttpResponse.json(fixtures.settings)),
   http.get("*/api/users", () => HttpResponse.json([fixtures.user])),
   http.get("*/api/leads/facets", () =>
-    HttpResponse.json({ categories: [{ value: "Gym", count: 2 }], cities: [{ value: "Sofia", count: 2 }], niches: ["gyms"] }),
+    HttpResponse.json({
+      categories: [{ value: "Gym", count: 2 }],
+      cities: [{ value: "Sofia", count: 2 }],
+      targets: [{ value: "gyms", count: 2 }],
+      lead_categories: [{ value: "NO_SITE", count: 2 }],
+    }),
   ),
 ];
 

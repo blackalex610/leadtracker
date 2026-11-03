@@ -17,6 +17,7 @@ from app.api.routes.worker import slice_budget
 from app.config import Settings, get_settings, normalize_database_url
 from app.core.enums import JobKind, JobStatus, UserRole
 from app.core.security import hash_token
+from app.data.targets import TARGETS
 from app.db import engine_options
 from app.models import Business, Job, SearchQuery, User
 from app.serverless import build_app
@@ -29,6 +30,8 @@ from tests.conftest import FakeProvider, make_place
 from tests.test_pipeline import fake_auditor_factory
 
 SPENT = -1.0  # a deadline already in the past: every run does the minimum and yields
+
+Q1, Q2, Q3 = (f"{t.query} в Sofia" for t in TARGETS[:3])
 
 
 def spent_deadline() -> float:
@@ -102,7 +105,7 @@ def test_public_deployment_requires_auth(monkeypatch: pytest.MonkeyPatch) -> Non
 
 def test_admin_token_minimum_length() -> None:
     with pytest.raises(ValidationError):
-        Settings(_env_file=None, admin_token="too-short")
+        Settings(_env_file=None, admin_token="abc")
 
 
 async def test_configuration_errors_are_explained_without_values(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -148,6 +151,26 @@ async def test_admin_token_bootstrap(sessionmaker: async_sessionmaker[AsyncSessi
         assert len(users) == 1 and users[0].token_hash == hash_token("b" * 30)
 
 
+async def test_leads_from_before_categories_are_rescored_once(
+    sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    from app.services.businesses import record_from_place, upsert_business
+
+    async with sessionmaker() as session:
+        await upsert_business(session, record_from_place(make_place(1)))  # saved, never scored
+        await session.commit()
+    settings = Settings(_env_file=None)
+    await initialise(settings, sessionmaker)
+    await initialise(settings, sessionmaker)  # a second cold start does not queue a duplicate
+    async with sessionmaker() as session:
+        jobs = (await session.execute(select(Job).where(Job.kind == JobKind.RESCORE.value))).scalars().all()
+        assert len(jobs) == 1
+    assert await Worker(sessionmaker).run_once()
+    async with sessionmaker() as session:
+        business = (await session.execute(select(Business))).scalar_one()
+        assert business.lead_category == "NO_SITE" and business.expected_value > 0
+
+
 # --- time-boxed, resumable jobs ----------------------------------------------------------------
 
 
@@ -183,18 +206,12 @@ async def test_time_boxed_search_job_resumes_between_queries(
     )
     provider = fake_provider(
         pages={
-            "gyms in Lozenets, Sofia": [[p1, p2]],
-            "gyms in Mladost, Sofia": [[p3], [p4]],
-            "gyms in Center, Sofia": [[p5, p1]],
+            Q1: [[p1, p2]],
+            Q2: [[p3], [p4]],
+            Q3: [[p5, p1]],
         }
     )
-    params = {
-        "category": "gyms",
-        "location": "Sofia",
-        "neighborhoods": ["Lozenets", "Mladost", "Center"],
-        "preset_key": "gyms",
-        "max_results": 60,
-    }
+    params = {"location": "Sofia", "use_neighborhoods": False, "max_queries": 3}
     async with sessionmaker() as session:
         job = await enqueue(session, JobKind.SEARCH, params)
         await session.commit()
@@ -223,12 +240,12 @@ async def test_time_boxed_audit_job_resumes_between_audits(
     async with sessionmaker() as session:
         await update_settings(session, {"audit": {"max_concurrent": 1}}, None)
     places = [make_place(i, website_url=f"https://site{i}.bg/") for i in range(1, 4)]
-    fake_provider(pages={"gyms in Sofia": [places]})
+    fake_provider(pages={Q1: [places]})
     async with sessionmaker() as session:
         search = await enqueue(
             session,
             JobKind.SEARCH,
-            {"category": "gyms", "location": "Sofia", "audit_websites": False, "max_results": 60},
+            {"location": "Sofia", "use_neighborhoods": False, "audit_websites": False, "max_queries": 1},
         )
         await session.commit()
     assert await Worker(sessionmaker).run_once()
@@ -288,10 +305,14 @@ async def test_worker_run_processes_the_queue(
 ) -> None:
     monkeypatch.setattr(search_service, "build_auditor", fake_auditor_factory([]))
     monkeypatch.setattr(get_settings(), "provider_api_key", SecretStr("test-key"))
-    fake_provider(pages={"gyms in Sofia": [[make_place(1), make_place(2, website_url="https://modern.bg/")]]})
+    fake_provider(pages={Q1: [[make_place(1), make_place(2, website_url="https://modern.bg/")]]})
     async with _client() as client:
         assert (await client.get("/api/meta")).json()["on_demand_worker"] is True
-        job = (await client.post("/api/search", json={"category": "gyms", "location": "Sofia"})).json()
+        job = (
+            await client.post(
+                "/api/search", json={"location": "Sofia", "use_neighborhoods": False, "max_queries": 1}
+            )
+        ).json()
         assert job["status"] == "queued"
         run = (await client.post("/api/worker/run")).json()
         assert run == {"ran": 1, "queued": 0, "running": 0, "on_demand": True}

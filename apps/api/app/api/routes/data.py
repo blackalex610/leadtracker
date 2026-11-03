@@ -20,7 +20,6 @@ from app.services import csv_import
 from app.services.csv_export import export_rows
 from app.services.dashboard import dashboard
 from app.services.leads import LeadExportQuery, apply_filters
-from app.services.presets import load_niches
 from app.services.scoring_service import rescore_business
 from app.services.settings import load_settings
 from app.worker.queue import enqueue
@@ -173,10 +172,9 @@ async def import_commit(body: ImportCommit, session: SessionDep, user: CurrentUs
         default_region=runtime.general.default_country,
         user_id=user.id,
     )
-    niches = await load_niches(session)
     businesses = (await session.execute(select(Business).where(Business.id.in_(touched)))).scalars().all()
     for business in businesses:
-        await rescore_business(session, business, runtime, niches)
+        await rescore_business(session, business, runtime)
     audit_job_id = None
     to_audit = [
         b.id

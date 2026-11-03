@@ -79,15 +79,15 @@ class ScoreResult:
 
 
 def is_strong_category(inp: ScoringInput, cfg: ScoringConfig) -> bool:
-    if inp.niche is not None:
-        return inp.niche.discovery_dependent
+    if inp.target is not None:
+        return True  # every ICP target is chosen because customers find it online
     types = {inp.primary_type, *inp.types} - {None}
     return bool(types & set(cfg.strong_types))
 
 
 def is_booking_oriented(inp: ScoringInput, cfg: ScoringConfig) -> bool:
-    if inp.niche is not None:
-        return inp.niche.booking_oriented
+    if inp.target is not None:
+        return inp.target.booking
     if inp.primary_type:
         return inp.primary_type in cfg.booking_types
     return bool(set(inp.types) & set(cfg.booking_types))
@@ -213,7 +213,7 @@ def calculate_opportunity_score(inp: ScoringInput, cfg: ScoringConfig) -> ScoreR
     # --- contextual -------------------------------------------------------------------
     phone_ok = inp.has_phone and not inp.phone_invalid
     if strong:
-        label = inp.niche.label if inp.niche else (inp.category or inp.primary_type or "category")
+        label = inp.target.label if inp.target else (inp.category or inp.primary_type or "category")
         fire(RuleKey.DISCOVERY_CATEGORY, f"{label}: category relies on online discovery")
     if inp.open_in_calling_window:
         fire(RuleKey.OPEN_IN_CALLING_WINDOW, "Open during the calling window on most weekdays")

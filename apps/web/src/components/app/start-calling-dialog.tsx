@@ -1,8 +1,15 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PRIORITIES, PRIORITY_LABELS, type CallingFilters } from "@leadtracker/shared";
+import {
+  CATEGORY_LABELS,
+  PRIORITIES,
+  PRIORITY_LABELS,
+  SELLABLE_CATEGORIES,
+  type CallingFilters,
+  type LeadCategory,
+} from "@leadtracker/shared";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { PhoneCallIcon } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -24,7 +31,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { callingSchema, toCallingFilters, type CallingFormValues } from "@/features/calling/calling-schema";
 import { api, errorMessage } from "@/lib/api";
-import { useFacets, usePresets, useSettings } from "@/lib/queries";
+import { useFacets, useMeta, useSettings } from "@/lib/queries";
+import { cn } from "@/lib/utils";
 
 function useDebounced<T>(value: T, ms: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -50,7 +58,8 @@ export function StartCallingDialog({ trigger, defaults }: { trigger?: ReactNode;
         <DialogHeader>
           <DialogTitle>Start calling session</DialogTitle>
           <DialogDescription>
-            One lead at a time, keyboard driven. Do-not-contact numbers are never included.
+            One lead at a time, keyboard driven, best deals first (price × odds). Do-not-contact numbers are
+            never included.
           </DialogDescription>
         </DialogHeader>
         {open && <CallingFormLoader defaults={defaults} onDone={() => setOpen(false)} />}
@@ -69,21 +78,23 @@ function CallingFormLoader(props: { defaults?: Partial<CallingFormValues>; onDon
 function CallingForm({ defaults, onDone }: { defaults?: Partial<CallingFormValues>; onDone: () => void }) {
   const navigate = useNavigate();
   const settings = useSettings();
-  const presets = usePresets();
+  const meta = useMeta();
   const facets = useFacets();
   const calling = settings.data?.runtime.calling;
+  const offers = settings.data?.runtime.offers;
 
   const form = useForm<CallingFormValues>({
     resolver: zodResolver(callingSchema),
     defaultValues: {
-      niche_key: "any",
+      categories: [],
+      target_key: "any",
       city: "",
       window_start: calling?.window_start ?? "19:00",
       window_end: calling?.window_end ?? "21:00",
       open_today: true,
-      priorities: ["HOT", "WARM"],
+      priorities: [],
       website: "any",
-      limit: calling?.default_session_limit ?? 50,
+      limit: offers?.calls_per_day ?? calling?.default_session_limit ?? 150,
       include_unknown_hours: calling?.include_unknown_hours ?? true,
       ...defaults,
     },
@@ -107,20 +118,6 @@ function CallingForm({ defaults, onDone }: { defaults?: Partial<CallingFormValue
     onError: (e) => toast.error(errorMessage(e)),
   });
 
-  // Picking a niche applies its calling window.
-  const niche = useWatch({ control: form.control, name: "niche_key" });
-  const appliedNiche = useRef<string | null>(null);
-  useEffect(() => {
-    // Apply a template's calling window once per selection (not on refetch).
-    if (!presets.data || appliedNiche.current === niche) return;
-    appliedNiche.current = niche;
-    const preset = presets.data.find((p) => p.key === niche);
-    if (preset?.calling_window_start && preset.calling_window_end) {
-      form.setValue("window_start", preset.calling_window_start);
-      form.setValue("window_end", preset.calling_window_end);
-    }
-  }, [niche, presets.data, form]);
-
   const errors = form.formState.errors;
   return (
     <form
@@ -128,22 +125,52 @@ function CallingForm({ defaults, onDone }: { defaults?: Partial<CallingFormValue
       onSubmit={form.handleSubmit((v) => start.mutate(toCallingFilters(v)))}
       noValidate
     >
+      <div className="grid gap-1">
+        <Label>What to sell</Label>
+        <Controller
+          control={form.control}
+          name="categories"
+          render={({ field }) => (
+            <div className="flex flex-wrap gap-1">
+              {SELLABLE_CATEGORIES.map((c: LeadCategory) => {
+                const on = field.value.includes(c);
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => field.onChange(on ? field.value.filter((v) => v !== c) : [...field.value, c])}
+                    className={cn(
+                      "rounded border px-1.5 py-0.5 text-xs transition-colors",
+                      on ? "border-foreground bg-foreground text-background" : "hover:bg-accent",
+                    )}
+                  >
+                    {CATEGORY_LABELS[c]}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        />
+        <p className="text-[11px] text-muted-foreground">None selected = every lead worth calling.</p>
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-1">
-          <Label htmlFor="calling-niche">Category</Label>
+          <Label htmlFor="calling-target">Business type</Label>
           <Controller
             control={form.control}
-            name="niche_key"
+            name="target_key"
             render={({ field }) => (
               <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id="calling-niche">
+                <SelectTrigger id="calling-target">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="any">Any category</SelectItem>
-                  {presets.data?.map((p) => (
-                    <SelectItem key={p.key} value={p.key}>
-                      {p.label}
+                  <SelectItem value="any">Any type</SelectItem>
+                  {meta.data?.targets.map((t) => (
+                    <SelectItem key={t.key} value={t.key}>
+                      {t.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -185,7 +212,7 @@ function CallingForm({ defaults, onDone }: { defaults?: Partial<CallingFormValue
       )}
 
       <div className="grid gap-1">
-        <Label>Priority</Label>
+        <Label>Priority (none = any)</Label>
         <Controller
           control={form.control}
           name="priorities"
@@ -205,7 +232,6 @@ function CallingForm({ defaults, onDone }: { defaults?: Partial<CallingFormValue
             </div>
           )}
         />
-        {errors.priorities && <p className="text-xs text-bad">{errors.priorities.message}</p>}
       </div>
 
       <div className="grid grid-cols-2 gap-3">

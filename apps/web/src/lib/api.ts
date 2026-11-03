@@ -23,9 +23,7 @@ import type {
   MeResponse,
   Meta,
   NoteOut,
-  Preset,
-  PresetCreate,
-  PresetUpdate,
+  ResetResult,
   RuntimeSettings,
   SearchEstimate,
   SearchJobDetail,
@@ -174,10 +172,7 @@ export const api = {
   rescoreAll: () => queuesJob(post<JobRef>("/api/settings/rescore")),
   usage: () => get<Usage>("/api/usage"),
 
-  presets: () => get<Preset[]>("/api/presets"),
-  createPreset: (body: PresetCreate) => post<Preset>("/api/presets", body),
-  updatePreset: (id: number, body: PresetUpdate) => patch<Preset>(`/api/presets/${id}`, body),
-  deletePreset: (id: number) => del<{ ok: boolean }>(`/api/presets/${id}`),
+  resetLeads: (confirm: string) => post<ResetResult>("/api/admin/reset-leads", { confirm }),
 
   suppression: (includeInactive = false) =>
     get<SuppressionEntry[]>("/api/suppression", { include_inactive: includeInactive }),

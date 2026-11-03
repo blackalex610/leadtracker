@@ -36,6 +36,19 @@ describe("lead query <-> URL", () => {
     expect(contacted.toggle({ contacted: true }).contacted).toBeUndefined();
   });
 
+  it("parses lead categories and the 'needs a website' quick filter", () => {
+    expect(parseLeadQuery(new URLSearchParams("lead_category=NO_SITE&lead_category=NOPE&target_key=plumbers"))).toEqual({
+      lead_category: ["NO_SITE"],
+      target_key: "plumbers",
+    });
+    const needsSite = QUICK_FILTERS.find((f) => f.id === "needs-site")!;
+    const on = needsSite.toggle({});
+    expect(on.lead_category).toEqual(["BROKEN_SITE", "NO_SITE", "SOCIAL_ONLY", "NEW_BUSINESS", "PLATFORM_ONLY"]);
+    expect(needsSite.isActive(on)).toBe(true);
+    expect(needsSite.isActive({ lead_category: ["NO_SITE"] })).toBe(false);
+    expect(needsSite.toggle(on).lead_category).toBeUndefined();
+  });
+
   it("counts active filters and strips paging for export", () => {
     const query = { priority: ["HOT" as const], sort: "name" as const, page: 2, page_size: 100 };
     expect(activeFilterCount(query)).toBe(1);
@@ -66,43 +79,16 @@ describe("formatting helpers", () => {
 });
 
 describe("search form schema", () => {
-  const base = {
-    preset_key: "gyms",
-    location: "Sofia",
-    neighborhoods: ["Lozenets"],
-    category: "gyms",
-    keywords: "",
-    min_rating: 4,
-    min_reviews: Number.NaN,
-    max_reviews: Number.NaN,
-    has_website: "no" as const,
-    open_in_window: false,
-    window_start: "19:00",
-    window_end: "21:00",
-    lead_quality: "high" as const,
-    max_results: 60,
-    audit_websites: true,
-  };
+  const base = { location: "Sofia", target_leads: 150, max_queries: 30, use_neighborhoods: true, audit_websites: true };
 
   it("maps form values to the API request", () => {
-    const parsed = searchSchema.parse(base);
-    expect(toSearchRequest(parsed)).toMatchObject({
-      category: "gyms",
-      location: "Sofia",
-      neighborhoods: ["Lozenets"],
-      preset_key: "gyms",
-      min_rating: 4,
-      min_reviews: null,
-      max_reviews: null,
-      keywords: null,
-      has_website: "no",
-      lead_quality: "high",
-    });
+    expect(toSearchRequest(searchSchema.parse({ ...base, location: "  Plovdiv " }))).toEqual({ ...base, location: "Plovdiv" });
   });
 
   it("rejects invalid input", () => {
     expect(searchSchema.safeParse({ ...base, location: "" }).success).toBe(false);
-    expect(searchSchema.safeParse({ ...base, min_reviews: 50, max_reviews: 10 }).success).toBe(false);
-    expect(searchSchema.safeParse({ ...base, window_start: "25:00" }).success).toBe(false);
+    expect(searchSchema.safeParse({ ...base, target_leads: 0 }).success).toBe(false);
+    expect(searchSchema.safeParse({ ...base, target_leads: Number.NaN }).success).toBe(false);
+    expect(searchSchema.safeParse({ ...base, max_queries: 500 }).success).toBe(false);
   });
 });

@@ -1,18 +1,16 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { KeyRoundIcon } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useSearchParams } from "react-router";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api, errorMessage } from "@/lib/api";
 import { keys } from "@/lib/queries";
 
-const schema = z.object({ token: z.string().trim().min(10, "Paste your access token") });
+const schema = z.object({ token: z.string().trim().min(1, "Enter the password") });
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -28,26 +26,41 @@ export function LoginPage() {
     },
   });
   return (
-    <div className="grid min-h-dvh place-items-center bg-muted/30 p-4">
-      <Card className="w-full max-w-sm">
-        <CardContent className="grid gap-4 py-6">
-          <div>
-            <h1 className="text-base font-semibold">Lead Tracker</h1>
-            <p className="text-xs text-muted-foreground">Sign in with the access token your admin gave you.</p>
+    <div className="grid min-h-dvh place-items-center bg-brand-ink p-4 text-white">
+      <div className="grid w-full max-w-xs gap-8">
+        <div className="grid justify-items-center gap-3">
+          <img src="/kov4-wordmark.png" alt="KOV4" width={146} height={61} className="h-auto w-56" />
+          <h1 className="text-sm font-medium text-white/60">Lead Tracker</h1>
+        </div>
+        <form className="grid gap-3" onSubmit={form.handleSubmit((v) => login.mutate(v.token))} noValidate>
+          <div className="grid gap-1.5">
+            <Label htmlFor="token" className="text-white/80">
+              Password
+            </Label>
+            <Input
+              id="token"
+              type="password"
+              autoComplete="current-password"
+              autoFocus
+              className="h-10 border-white/15 bg-white/5 text-base text-white focus-visible:border-brand focus-visible:ring-brand/40"
+              {...form.register("token")}
+            />
+            {form.formState.errors.token && <p className="text-xs text-[#ff6b76]">{form.formState.errors.token.message}</p>}
+            {login.error && (
+              <p className="text-xs text-[#ff6b76]" role="alert">
+                {errorMessage(login.error)}
+              </p>
+            )}
           </div>
-          <form className="grid gap-3" onSubmit={form.handleSubmit((v) => login.mutate(v.token))} noValidate>
-            <div className="grid gap-1">
-              <Label htmlFor="token">Access token</Label>
-              <Input id="token" type="password" autoComplete="current-password" autoFocus {...form.register("token")} />
-              {form.formState.errors.token && <p className="text-xs text-bad">{form.formState.errors.token.message}</p>}
-              {login.error && <p className="text-xs text-bad" role="alert">{errorMessage(login.error)}</p>}
-            </div>
-            <Button type="submit" disabled={login.isPending}>
-              <KeyRoundIcon /> {login.isPending ? "Signing in…" : "Sign in"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+          <Button
+            type="submit"
+            disabled={login.isPending}
+            className="h-10 bg-brand text-sm font-semibold text-brand-foreground hover:bg-brand-hover"
+          >
+            {login.isPending ? "Signing in…" : "Sign in"}
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }

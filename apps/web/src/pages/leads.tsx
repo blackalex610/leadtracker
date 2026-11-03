@@ -1,9 +1,12 @@
 import {
+  CATEGORY_LABELS,
+  LEAD_CATEGORIES,
   LEAD_STATUSES,
   OPPORTUNITY_LABELS,
   OPPORTUNITY_TYPES,
   SORT_LABELS,
   STATUS_LABELS,
+  type LeadCategory,
   type LeadListQuery,
   type LeadStatus,
   type OpportunityType,
@@ -31,6 +34,8 @@ import {
   DemoBadge,
   HealthScore,
   OpportunityScore,
+  CategoryBadge,
+  DealValue,
   OpportunityTags,
   PriorityBadge,
   StatusBadge,
@@ -60,7 +65,7 @@ import { api, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatNumber } from "@/lib/format";
 import { activeFilterCount, parseLeadQuery, QUICK_FILTERS, serializeLeadQuery, withoutPaging } from "@/lib/lead-query";
-import { useFacets, useInvalidateLeads, useLeads } from "@/lib/queries";
+import { useFacets, useInvalidateLeads, useLeads, useMeta } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_PAGE_SIZE = 50;
@@ -68,7 +73,7 @@ const DEFAULT_PAGE_SIZE = 50;
 export function LeadsPage() {
   const [params, setParams] = useSearchParams();
   const query = useMemo(() => parseLeadQuery(params), [params]);
-  const effective: LeadListQuery = { sort: "priority", order: "desc", page_size: DEFAULT_PAGE_SIZE, ...query };
+  const effective: LeadListQuery = { sort: "expected_value", order: "desc", page_size: DEFAULT_PAGE_SIZE, ...query };
   const leads = useLeads(effective);
   const navigate = useNavigate();
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -128,9 +133,10 @@ export function LeadsPage() {
                     }
                   />
                 </TableHead>
+                <SortHead field="expected_value" query={effective} onChange={update}>Sell</SortHead>
                 <SortHead field="priority" query={effective} onChange={update}>Priority</SortHead>
                 <SortHead field="name" query={effective} onChange={update}>Business</SortHead>
-                <TableHead>Category</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Phone</TableHead>
                 <SortHead field="rating" query={effective} onChange={update}>Rating</SortHead>
                 <SortHead field="review_count" query={effective} onChange={update}>Reviews</SortHead>
@@ -145,7 +151,7 @@ export function LeadsPage() {
               {leads.isPending &&
                 Array.from({ length: 12 }, (_, i) => (
                   <TableRow key={i}>
-                    <TableCell colSpan={12}>
+                    <TableCell colSpan={13}>
                       <Skeleton className="h-5" />
                     </TableCell>
                   </TableRow>
@@ -168,6 +174,12 @@ export function LeadsPage() {
                         setSelected(next);
                       }}
                     />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col items-start gap-0.5">
+                      <CategoryBadge category={lead.lead_category} />
+                      <DealValue value={lead.deal_value} odds={lead.close_odds} className="text-xs" />
+                    </div>
                   </TableCell>
                   <TableCell>
                     <PriorityBadge priority={lead.priority} />
@@ -301,7 +313,7 @@ function SortHead({ field, query, onChange, children }: {
   onChange: (q: LeadListQuery) => void;
   children: React.ReactNode;
 }) {
-  const active = (query.sort ?? "priority") === field;
+  const active = (query.sort ?? "expected_value") === field;
   const order = query.order ?? "desc";
   const Icon = !active ? ArrowUpDownIcon : order === "desc" ? ArrowDownIcon : ArrowUpIcon;
   return (
@@ -389,7 +401,7 @@ function FilterBar({ query, onChange }: { query: LeadListQuery; onChange: (q: Le
           </Button>
         )}
         <Select
-          value={query.sort ?? "priority"}
+          value={query.sort ?? "expected_value"}
           onValueChange={(v) => onChange({ ...query, sort: v as SortField, page: undefined })}
         >
           <SelectTrigger size="sm" className="w-40" aria-label="Sort by">
@@ -446,6 +458,7 @@ function MultiToggle<T extends string>({ label, options, value, onChange }: {
 
 function MoreFilters({ query, onChange }: { query: LeadListQuery; onChange: (q: LeadListQuery) => void }) {
   const facets = useFacets();
+  const meta = useMeta();
   const set = (patch: Partial<LeadListQuery>) => onChange({ ...query, ...patch, page: undefined });
   const numberValue = (v: number | null | undefined) => (v === undefined || v === null ? "" : String(v));
   const parseNum = (s: string) => (s === "" ? undefined : Number(s));
@@ -458,6 +471,12 @@ function MoreFilters({ query, onChange }: { query: LeadListQuery; onChange: (q: 
       </PopoverTrigger>
       <PopoverContent className="w-96" align="start">
         <div className="grid gap-3">
+          <MultiToggle<LeadCategory>
+            label="What to sell (any of)"
+            options={LEAD_CATEGORIES.map((c) => ({ value: c, label: CATEGORY_LABELS[c] }))}
+            value={query.lead_category}
+            onChange={(lead_category) => set({ lead_category })}
+          />
           <MultiToggle<LeadStatus>
             label="Status"
             options={LEAD_STATUSES.map((s) => ({ value: s, label: STATUS_LABELS[s] }))}
@@ -470,9 +489,25 @@ function MoreFilters({ query, onChange }: { query: LeadListQuery; onChange: (q: 
             value={query.opportunity}
             onChange={(opportunity) => set({ opportunity })}
           />
+          <div className="grid gap-1">
+            <Label>Business type</Label>
+            <Select value={query.target_key ?? "__any"} onValueChange={(v) => set({ target_key: v === "__any" ? undefined : v })}>
+              <SelectTrigger size="sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__any">Any</SelectItem>
+                {facets.data?.targets.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>
+                    {meta.data?.targets.find((m) => m.key === t.value)?.label ?? t.value} ({t.count})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="grid gap-1">
-              <Label>Category</Label>
+              <Label>Google category</Label>
               <Select value={query.category ?? "__any"} onValueChange={(v) => set({ category: v === "__any" ? undefined : v })}>
                 <SelectTrigger size="sm">
                   <SelectValue />

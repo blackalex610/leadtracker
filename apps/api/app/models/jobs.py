@@ -66,7 +66,7 @@ class SearchQuery(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
-    text_query: Mapped[str] = mapped_column(String(500))
+    text_query: Mapped[str] = mapped_column(String(500), index=True)
     params: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     pages_fetched: Mapped[int] = mapped_column(SmallInteger, default=0)
     results_count: Mapped[int] = mapped_column(Integer, default=0)

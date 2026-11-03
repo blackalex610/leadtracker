@@ -198,7 +198,7 @@ class ScoringConfig(BaseModel):
     low_review_threshold: int = Field(default=20, ge=0)
     weak_conversion_min_missing: int = Field(default=3, ge=1, le=9)
     few_photos_threshold: int = Field(default=3, ge=0, le=10)
-    # Category knowledge (Google place types), used when a business has no niche preset.
+    # Category knowledge (Google place types), used when a business was not found by an ICP target.
     strong_types: list[str] = Field(default_factory=lambda: list(DEFAULT_STRONG_TYPES))
     booking_types: list[str] = Field(default_factory=lambda: list(DEFAULT_BOOKING_TYPES))
 

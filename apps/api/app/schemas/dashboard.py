@@ -71,6 +71,26 @@ class MonthSummary(Schema):
     cost: CostEstimate
 
 
+class CategoryCount(Schema):
+    key: str
+    label: str
+    count: int
+    deal_value: int
+    expected_value: int
+
+
+class GoalProgress(Schema):
+    weekly_goal: int
+    calls_per_day: int
+    won_value_7d: int
+    won_count_7d: int
+    in_play_value: int
+    in_play_count: int
+    calls_7d: int
+    ready_leads: int
+    ready_expected_value: int
+
+
 class RecentJob(Schema):
     id: int
     status: str
@@ -83,6 +103,8 @@ class RecentJob(Schema):
 
 class DashboardOut(Schema):
     kpis: DashboardKpis
+    goal: GoalProgress
+    by_category: list[CategoryCount]
     by_opportunity: list[OpportunityCount]
     calls_by_outcome: list[KeyCount]
     pipeline: list[KeyCount]
@@ -101,7 +123,8 @@ class FacetValue(Schema):
 class FacetsOut(Schema):
     categories: list[FacetValue]
     cities: list[FacetValue]
-    niches: list[str]
+    targets: list[FacetValue]
+    lead_categories: list[FacetValue]
 
 
 class ProviderInfo(Schema):

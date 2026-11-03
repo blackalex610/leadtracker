@@ -13,6 +13,7 @@ export type OpportunityType = S["OpportunityType"];
 export type DataQuality = S["DataQuality"];
 export type JobStatus = S["JobStatus"];
 export type RuleKey = S["RuleKey"];
+export type LeadCategory = S["LeadCategory"];
 
 export type LeadSummary = S["LeadSummary"];
 export type LeadDetail = S["LeadDetail"];
@@ -49,13 +50,15 @@ export type DashboardKpis = S["DashboardKpis"];
 export type CostEstimate = S["CostEstimate"];
 export type Usage = S["UsageOut"];
 export type Facets = S["FacetsOut"];
+export type GoalProgress = S["GoalProgress"];
+export type CategoryCount = S["CategoryCount"];
 
 export type SettingsOut = S["SettingsOut"];
 export type RuntimeSettings = S["RuntimeSettings"];
 export type ScoringConfig = S["ScoringConfig"];
-export type Preset = S["PresetOut"];
-export type PresetCreate = S["PresetCreate"];
-export type PresetUpdate = S["PresetUpdate"];
+export type OfferConfig = S["OfferConfig"];
+export type OfferSettings = S["OfferSettings"];
+export type ResetResult = S["ResetResult"];
 export type SuppressionEntry = S["SuppressionOut"];
 export type SuppressionCreate = S["SuppressionCreate"];
 
@@ -65,6 +68,8 @@ export type ImportCommit = S["ImportCommit"];
 export type ImportResult = S["ImportResult"];
 
 export type Meta = S["MetaOut"];
+export type TargetMeta = S["TargetMeta"];
+export type CategoryMeta = S["CategoryMeta"];
 export type WorkerRun = S["WorkerRunOut"];
 export type User = S["UserOut"];
 export type MeResponse = S["MeResponse"];

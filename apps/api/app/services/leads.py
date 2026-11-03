@@ -14,6 +14,7 @@ from app.core.enums import (
     GOOGLE_OPPORTUNITIES,
     WEBSITE_PROBLEM_OPPORTUNITIES,
     JobStatus,
+    LeadCategory,
     LeadStatus,
     OpportunityType,
     Priority,
@@ -45,14 +46,13 @@ from app.schemas.leads import (
     UserRef,
 )
 from app.scoring.data_quality import data_quality
-from app.services.presets import load_niches, resolve_niche
-from app.services.scoring_service import pitch_for
+from app.services.scoring_service import business_target, pitch_for
 from app.services.settings import RuntimeSettings
 
 WEBSITE_PROBLEM_HEALTH = 60
 _DETAIL_COMPUTED = {
     "top_reason",
-    "niche_label",
+    "target_label",
     "data_quality_checklist",
     "contacts",
     "audit",
@@ -75,7 +75,8 @@ class LeadFilters(BaseModel):
     status: list[LeadStatus] = Field(default_factory=list)
     opportunity: list[OpportunityType] = Field(default_factory=list)
     category: str | None = None
-    niche_key: str | None = None
+    lead_category: list[LeadCategory] = Field(default_factory=list)
+    target_key: str | None = None
     city: str | None = None
     has_phone: bool | None = None
     has_website: bool | None = None
@@ -96,7 +97,7 @@ class LeadFilters(BaseModel):
 
 
 class LeadExportQuery(LeadFilters):
-    sort: SortField = "priority"
+    sort: SortField = "expected_value"
     order: Literal["asc", "desc"] = "desc"
 
 
@@ -132,8 +133,10 @@ def apply_filters(stmt: Select[Any], f: LeadFilters, user_id: int | None = None)
         conditions.append(Business.opportunity_types.overlap([o.value for o in f.opportunity]))
     if f.category:
         conditions.append(Business.category == f.category)
-    if f.niche_key:
-        conditions.append(Business.niche_key == f.niche_key)
+    if f.lead_category:
+        conditions.append(Business.lead_category.in_([c.value for c in f.lead_category]))
+    if f.target_key:
+        conditions.append(Business.target_key == f.target_key)
     if f.city:
         conditions.append(func.lower(Business.city) == f.city.strip().lower())
     if f.has_phone is not None:
@@ -200,6 +203,15 @@ def apply_sort(stmt: Select[Any], sort: str, order: str) -> Select[Any]:
         "last_contacted_at": Business.last_contacted_at,
         "next_callback_at": Business.next_callback_at,
     }
+    if sort == "expected_value":
+        # "desc" = best deals first: highest price x odds, then the strongest signals.
+        if desc:
+            return stmt.order_by(
+                Business.expected_value.desc(), Business.opportunity_score.desc(), Business.id.desc()
+            )
+        return stmt.order_by(
+            Business.expected_value.asc(), Business.opportunity_score.asc(), Business.id.asc()
+        )
     if sort == "priority":
         # "desc" = most important first: HOT, then highest score.
         if desc:
@@ -338,12 +350,11 @@ async def lead_detail(session: AsyncSession, business: Business, runtime: Runtim
         | {c.user_id for c in calls}
         | {n.user_id for n in notes},
     )
-    niches = await load_niches(session)
-    niche = resolve_niche(business, niches)
+    target = business_target(business)
     pitches: dict[str, PitchOut] = {}
     for language in ("en", "bg"):
         pitch, _ = pitch_for(
-            business, audit if business.website_status != "unaudited" else None, niches, runtime, language
+            business, audit if business.website_status != "unaudited" else None, runtime, language
         )
         pitches[language] = PitchOut(**pitch.to_dict())
     _, checklist = data_quality(
@@ -358,7 +369,7 @@ async def lead_detail(session: AsyncSession, business: Business, runtime: Runtim
         {k: getattr(business, k) for k in LeadDetail.model_fields if k not in _DETAIL_COMPUTED}
     )
     detail.top_reason = to_summary(business).top_reason
-    detail.niche_label = niche.label if niche else None
+    detail.target_label = target.label if target else None
     detail.data_quality_checklist = checklist
     detail.contacts = [ContactOut.model_validate(c) for c in contacts]
     detail.audit = AuditOut.model_validate(audit) if audit else None

@@ -16,7 +16,7 @@ function page(items: LeadSummary[], total = items.length) {
 }
 
 describe("Search → results", () => {
-  it("starts a search job and shows result cards with the opportunity", async () => {
+  it("finds leads with one click and shows what to sell each one", async () => {
     let body: Record<string, unknown> | null = null;
     server.use(
       http.post("*/api/search/estimate", () =>
@@ -34,32 +34,59 @@ describe("Search → results", () => {
       http.get("*/api/leads", ({ request }) => {
         const url = new URL(request.url);
         expect(url.searchParams.get("job_id")).toBe("7");
-        return HttpResponse.json(page([makeLead(), makeLead({ id: 2, name: "Pulse Fitness", priority: "WARM", opportunity_types: ["LOW_REVIEWS"] })]));
+        expect(url.searchParams.get("sort")).toBe("expected_value");
+        return HttpResponse.json(
+          page([
+            makeLead(),
+            makeLead({
+              id: 2,
+              name: "Pulse Fitness",
+              priority: "WARM",
+              opportunity_types: ["LOW_REVIEWS"],
+              lead_category: "WEAK_GOOGLE",
+              deal_value: 129,
+              close_odds: 20,
+              expected_value: 26,
+            }),
+          ]),
+        );
       }),
     );
     const { user, router } = renderPage(<FindLeadsPage />, { path: "/search" , url: "/search" });
 
-    const location = await screen.findByLabelText("Location");
+    const location = await screen.findByLabelText("City");
     await user.clear(location);
     await user.type(location, "Sofia");
+    expect(screen.getByText(/1 day of calls at 150\/day/)).toBeInTheDocument();
     await screen.findByText(/free requests left this month/);
-    await user.click(screen.getByRole("button", { name: "Search" }));
+    await user.click(screen.getByRole("button", { name: "Find 150 leads" }));
 
     expect(await screen.findByText("Bella Nails")).toBeInTheDocument();
     expect(screen.getByText("Pulse Fitness")).toBeInTheDocument();
     const card = screen.getByRole("link", { name: "Bella Nails" });
-    expect(within(card).getByText("NO_WEBSITE")).toBeInTheDocument();
-    expect(within(card).getByText("Hot")).toBeInTheDocument();
-    expect(screen.getByText(/2 \/ 2 businesses processed/)).toBeInTheDocument();
+    expect(within(card).getByText("No website", { selector: "[data-slot=badge]" })).toBeInTheDocument();
+    expect(within(card).getByText("Starter website")).toBeInTheDocument();
+    expect(within(card).getByText("€290")).toBeInTheDocument();
+    expect(screen.getByText(/2 fresh leads \(asked for 150\)/)).toBeInTheDocument();
+    expect(screen.getByText(/€419 in offers/)).toBeInTheDocument();
+    // Category chips filter the result cards.
+    await user.click(screen.getByRole("button", { name: /Weak Google profile/ }));
+    expect(screen.queryByText("Bella Nails")).not.toBeInTheDocument();
     expect(router.state.location.search).toBe("?job=7");
-    expect(body).toMatchObject({ category: "gyms", location: "Sofia", preset_key: "gyms", min_rating: 4 });
+    expect(body).toEqual({
+      location: "Sofia",
+      target_leads: 150,
+      max_queries: 30,
+      use_neighborhoods: true,
+      audit_websites: true,
+    });
   });
 
   it("explains when the provider is not configured", async () => {
     server.use(http.get("*/api/meta", () => HttpResponse.json({ ...fixtures.meta, provider: { name: "google_places", configured: false, demo_mode: false, field_tier: "enterprise" } })));
     renderPage(<FindLeadsPage />, { path: "/search", url: "/search" });
     expect(await screen.findByText("Provider not configured")).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole("button", { name: "Search" })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Find .*leads$/ })).toBeDisabled());
   });
 });
 
@@ -84,7 +111,7 @@ describe("Lead filtering", () => {
     expect(screen.getByText("Bella Nails")).toBeInTheDocument();
     expect(router.state.location.search).toContain("opportunity=NO_WEBSITE");
     const last = requests.at(-1)!;
-    expect(last.get("sort")).toBe("priority");
+    expect(last.get("sort")).toBe("expected_value");
     expect(last.get("page_size")).toBe("50");
     expect(screen.getByRole("button", { name: "No website" })).toHaveAttribute("aria-pressed", "true");
   });
@@ -140,8 +167,11 @@ describe("Lead details", () => {
 
     expect(await screen.findByRole("heading", { name: "Iron Gym Lozenets" })).toBeInTheDocument();
     expect(screen.getByText("Why this lead?")).toBeInTheDocument();
-    expect(screen.getByText("Website Health 18/100 (below 40)")).toBeInTheDocument();
     const why = screen.getByText("Why this lead?").closest('[data-slot="card"]') as HTMLElement;
+    expect(within(why).getByText("Website Health 18/100 (below 40)")).toBeInTheDocument();
+    const offer = screen.getByText("What to sell").closest('[data-slot="card"]') as HTMLElement;
+    expect(within(offer).getByText("Website redesign")).toBeInTheDocument();
+    expect(within(offer).getByText("€290")).toBeInTheDocument();
     expect(within(why).getByText(/No online booking mechanism detected/)).toBeInTheDocument();
     expect(within(why).getByText(/^HOT:/)).toBeInTheDocument();
     expect(screen.getByText("Suggested pitch")).toBeInTheDocument();

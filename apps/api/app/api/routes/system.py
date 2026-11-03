@@ -13,11 +13,21 @@ from app.config import get_settings
 from app.core.enums import OPPORTUNITY_LABELS, CallOutcome, LeadStatus
 from app.core.ratelimit import login_limiter, rate_limit
 from app.core.security import hash_token, sign_session
-from app.data.locations import CATEGORY_SUGGESTIONS, CITIES
+from app.data.locations import CITIES
+from app.data.targets import GROUP_LABELS, TARGETS
 from app.models import User
 from app.providers.registry import provider_status
 from app.schemas.common import OkResponse
-from app.schemas.misc import LoginRequest, MeResponse, MetaOut, ProviderStatusOut, UserOut
+from app.schemas.misc import (
+    CategoryMeta,
+    LoginRequest,
+    MeResponse,
+    MetaOut,
+    ProviderStatusOut,
+    TargetMeta,
+    UserOut,
+)
+from app.scoring.category import CATEGORY_INFO, SELLABLE
 from app.scoring.config import RULE_META
 
 router = APIRouter()
@@ -50,7 +60,30 @@ async def meta(_user: CurrentUser) -> MetaOut:
         provider=ProviderStatusOut(**provider_status(settings)),
         pagespeed_configured=settings.pagespeed_api_key is not None,
         cities=CITIES,
-        category_suggestions=CATEGORY_SUGGESTIONS,
+        targets=[
+            TargetMeta(
+                key=t.key,
+                label=t.label,
+                label_bg=t.label_bg,
+                group=t.group,
+                group_label=GROUP_LABELS.get(t.group, t.group),
+                value_tier=t.value_tier,
+                booking=t.booking,
+            )
+            for t in TARGETS
+        ],
+        lead_categories=[
+            CategoryMeta(
+                key=key,
+                label=info.label,
+                label_bg=info.label_bg,
+                offer=info.offer,
+                offer_bg=info.offer_bg,
+                description=info.description,
+                sellable=key in SELLABLE,
+            )
+            for key, info in CATEGORY_INFO.items()
+        ],
         lead_statuses=list(LeadStatus),
         call_outcomes=[o.value for o in CallOutcome],
         opportunity_labels={k.value: v for k, v in OPPORTUNITY_LABELS.items()},
@@ -83,9 +116,7 @@ async def login(body: LoginRequest, response: Response, session: SessionDep) -> 
         await session.execute(select(User).where(User.token_hash == hash_token(body.token.strip())))
     ).scalar_one_or_none()
     if user is None or not user.is_active:
-        raise HTTPException(
-            status_code=401, detail={"code": "invalid_token", "message": "Invalid access token."}
-        )
+        raise HTTPException(status_code=401, detail={"code": "invalid_token", "message": "Wrong password."})
     user.last_login_at = datetime.now(UTC)
     await session.commit()
     response.set_cookie(

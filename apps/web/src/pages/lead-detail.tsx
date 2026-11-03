@@ -11,7 +11,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 
-import { DemoBadge, OpportunityTags, PriorityBadge } from "@/components/app/badges";
+import { CategoryBadge, DemoBadge, OpportunityTags, PriorityBadge } from "@/components/app/badges";
 import { CallButton } from "@/components/app/phone";
 import { ErrorState, PageFallback } from "@/components/app/states";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +37,7 @@ import { AuditCard } from "@/features/lead/audit-card";
 import { BusinessCard, GoogleProfileCard } from "@/features/lead/business-card";
 import { CallPanel } from "@/features/lead/call-panel";
 import { ActivityCard, NotesCard } from "@/features/lead/notes-activity";
+import { OfferCard } from "@/features/lead/offer-card";
 import { PitchCard } from "@/features/lead/pitch-card";
 import { WhyCard } from "@/features/lead/why-card";
 import { ApiError, api, errorMessage } from "@/lib/api";
@@ -66,8 +67,9 @@ export function LeadDetailPage() {
       <LeadHeader lead={data} />
       <div className="grid gap-4 p-5 xl:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
         <div className="flex min-w-0 flex-col gap-4">
-          <WhyCard lead={data} />
+          <OfferCard lead={data} />
           <PitchCard lead={data} defaultLanguage={settings.data?.runtime.general.pitch_language} />
+          <WhyCard lead={data} />
           <AuditCard lead={data} />
           <GoogleProfileCard lead={data} />
         </div>
@@ -129,12 +131,13 @@ function LeadHeader({ lead }: { lead: LeadDetail }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-lg font-semibold">{lead.name}</h1>
+            <CategoryBadge category={lead.lead_category} reason={lead.category_reason} />
             <PriorityBadge priority={lead.priority} reason={lead.priority_reason} />
             {lead.is_demo && <DemoBadge />}
             {lead.suppressed && <Badge variant="hot">Do not contact</Badge>}
           </div>
           <p className="text-xs text-muted-foreground">
-            {[lead.niche_label ?? lead.category, lead.neighborhood, lead.city].filter(Boolean).join(" · ")}
+            {[lead.category ?? lead.target_label, lead.neighborhood, lead.city].filter(Boolean).join(" · ")}
           </p>
           <OpportunityTags types={lead.opportunity_types} max={6} className="mt-1.5" />
         </div>

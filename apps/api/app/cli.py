@@ -5,6 +5,7 @@ python -m app.cli rotate-token --email me@example.com
 python -m app.cli seed-demo [--count 60]      # requires DEMO_MODE=true
 python -m app.cli purge-demo
 python -m app.cli rescore
+python -m app.cli reset-leads --yes            # delete ALL leads/calls/jobs (keeps users, settings, DNC list)
 python -m app.cli dump-openapi out.json
 """
 
@@ -23,7 +24,6 @@ from app.core.security import generate_token, hash_token
 from app.db import dispose_engine, get_sessionmaker, session_scope
 from app.log import configure_logging
 from app.models import Business, User
-from app.services.presets import seed_builtin_presets
 from app.worker.queue import enqueue
 from app.worker.runner import Worker
 
@@ -72,19 +72,15 @@ async def seed_demo(count: int) -> None:
             file=sys.stderr,
         )
         sys.exit(1)
-    async with get_sessionmaker()() as session:
-        await seed_builtin_presets(session)
-    searches = [
-        {"category": "gyms", "preset_key": "gyms", "location": "Sofia"},
-        {"category": "beauty salons", "preset_key": "beauty", "location": "Sofia"},
-        {"category": "barber shops", "preset_key": "barbers", "location": "Sofia"},
-        {"category": "restaurants", "preset_key": "restaurants", "location": "Plovdiv"},
-        {"category": "dentists", "preset_key": "dentists", "location": "Varna"},
-    ]
-    per_search = max(5, count // len(searches))
+    cities = ["Sofia", "Plovdiv", "Varna"]
+    per_city = max(5, count // len(cities))
     async with session_scope() as session:
-        for params in searches:
-            await enqueue(session, JobKind.SEARCH, {**params, "max_results": per_search, "min_rating": None})
+        for city in cities:
+            await enqueue(
+                session,
+                JobKind.SEARCH,
+                {"location": city, "target_leads": per_city, "max_queries": 10, "use_neighborhoods": False},
+            )
     await run_jobs_until_idle()
     async with get_sessionmaker()() as session:
         total = len((await session.execute(select(Business.id).where(Business.is_demo.is_(True)))).all())
@@ -95,6 +91,14 @@ async def purge_demo() -> None:
     async with session_scope() as session:
         result = await session.execute(delete(Business).where(Business.is_demo.is_(True)))
     print(f"Deleted {result.rowcount} demo businesses")  # type: ignore[attr-defined]
+
+
+async def reset_leads() -> None:
+    from app.services.reset import reset_lead_data
+
+    async with get_sessionmaker()() as session:
+        counts = await reset_lead_data(session)
+    print("Deleted " + ", ".join(f"{n} {label}" for label, n in counts.items()))
 
 
 async def rescore() -> None:
@@ -126,6 +130,8 @@ def main() -> None:
     p.add_argument("--count", type=int, default=100)
     sub.add_parser("purge-demo")
     sub.add_parser("rescore")
+    p = sub.add_parser("reset-leads")
+    p.add_argument("--yes", action="store_true", help="confirm deleting every lead")
     p = sub.add_parser("dump-openapi")
     p.add_argument("path")
     args = parser.parse_args()
@@ -133,6 +139,11 @@ def main() -> None:
     if args.command == "dump-openapi":
         dump_openapi(args.path)
         return
+    if args.command == "reset-leads" and not args.yes:
+        print(
+            "reset-leads deletes every lead, call, note and search job. Re-run with --yes.", file=sys.stderr
+        )
+        sys.exit(2)
     configure_logging("WARNING")
 
     async def run() -> None:
@@ -147,6 +158,8 @@ def main() -> None:
                 await purge_demo()
             elif args.command == "rescore":
                 await rescore()
+            elif args.command == "reset-leads":
+                await reset_leads()
         finally:
             await dispose_engine()
 

@@ -1,5 +1,5 @@
 """Location suggestions for the search form. These are only used to build text
-queries ("gyms in Lozenets, Sofia"); any free-text location also works."""
+queries ("ключар в Lozenets, Sofia"); any free-text location also works."""
 
 from __future__ import annotations
 
@@ -43,10 +43,3 @@ CITIES: dict[str, list[str]] = {
     "Kyustendil": [],
     "Bansko": [],
 }  # fmt: skip
-
-CATEGORY_SUGGESTIONS: list[str] = [
-    "gyms", "personal trainers", "beauty salons", "nail salons", "hair salons", "barbers",
-    "restaurants", "cafes", "car detailing", "dentists", "physiotherapists",
-    "real estate agencies", "massage", "yoga studios", "spas", "veterinarians", "florists",
-    "bakeries", "car repair", "photographers", "wedding venues", "tattoo studios",
-]  # fmt: skip
