@@ -6,15 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-
-@dataclass(slots=True)
-class NicheInfo:
-    key: str
-    label: str
-    label_bg: str | None = None
-    booking_oriented: bool = False
-    discovery_dependent: bool = True
-    match_types: list[str] = field(default_factory=list)
+from app.data.targets import Target
 
 
 @dataclass(slots=True)
@@ -44,9 +36,10 @@ class ScoringInput:
     primary_type: str | None = None
     types: list[str] = field(default_factory=list)
     city: str | None = None
-    niche: NicheInfo | None = None
+    target: Target | None = None
     has_phone: bool = False
     phone_invalid: bool = False
+    phone_type: str | None = None
     website_url: str | None = None
     website_kind: str | None = None
     website_status: str = "none"

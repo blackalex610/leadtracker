@@ -1,11 +1,11 @@
-import { OUTCOME_LABELS, OUTCOME_SHORTCUTS, type CallOutcome, type CallingCard } from "@leadtracker/shared";
+import { OFFER_LABELS, OUTCOME_LABELS, OUTCOME_SHORTCUTS, type CallOutcome, type CallingCard } from "@leadtracker/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeftIcon, ArrowRightIcon, ExternalLinkIcon, MapIcon, PhoneIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 
-import { OpportunityTags, PriorityBadge, Rating } from "@/components/app/badges";
+import { CategoryBadge, DealValue, OpportunityTags, PriorityBadge, Rating } from "@/components/app/badges";
 import { ErrorState, PageFallback } from "@/components/app/states";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -233,6 +233,7 @@ function CallingRunner({ sessionId, cards, initialPosition, endedAt }: {
           <section className="flex min-w-0 flex-col gap-5" aria-live="polite">
             <div>
               <div className="flex flex-wrap items-center gap-2">
+                <CategoryBadge category={lead.lead_category} />
                 <PriorityBadge priority={lead.priority} />
                 {recorded[lead.id] && <Badge variant="good">Recorded: {OUTCOME_LABELS[recorded[lead.id]!]}</Badge>}
                 {!card.callable && <Badge variant="hot">{card.not_callable_reason}</Badge>}
@@ -262,6 +263,17 @@ function CallingRunner({ sessionId, cards, initialPosition, endedAt }: {
                 )}
               </p>
             </div>
+
+            {lead.lead_category && lead.deal_value > 0 && (
+              <div className="rounded-md border bg-accent/40 px-3 py-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sell</p>
+                <p className="flex flex-wrap items-baseline justify-between gap-2 text-xl font-semibold">
+                  {card.pitch?.offer ?? OFFER_LABELS[lead.lead_category]}
+                  <DealValue value={lead.deal_value} odds={lead.close_odds} className="text-base" />
+                </p>
+                {card.pitch?.ask && <p className="mt-1 text-[14px]">Close on: {card.pitch.ask}</p>}
+              </div>
+            )}
 
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Why we're calling</p>

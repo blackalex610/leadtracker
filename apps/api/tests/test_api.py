@@ -16,7 +16,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.config import get_settings
 from app.models import Business, SuppressionEntry
 from app.services.businesses import record_from_place, upsert_business
-from app.services.presets import load_niches
 from app.services.scoring_service import rescore_business
 from app.services.settings import load_settings
 from tests.conftest import FakeProvider, make_place
@@ -26,10 +25,9 @@ async def seed(sessionmaker: async_sessionmaker[AsyncSession], places: list[Any]
     ids: list[int] = []
     async with sessionmaker() as session:
         runtime = await load_settings(session, use_cache=False)
-        niches = await load_niches(session)
         for place in places:
-            outcome = await upsert_business(session, record_from_place(place), niche_key="gyms")
-            await rescore_business(session, outcome.business, runtime, niches)
+            outcome = await upsert_business(session, record_from_place(place), target_key="gyms")
+            await rescore_business(session, outcome.business, runtime)
             ids.append(outcome.business.id)
         await session.commit()
     return ids
@@ -75,6 +73,9 @@ async def test_filters(client: httpx.AsyncClient, leads: list[int]) -> None:
     assert await names(min_rating=4.0) == ["Alpha Gym", "Gamma Gym", "Бета Фитнес"]
     assert await names(contacted="false") == ["Alpha Gym", "Delta Gym", "Gamma Gym", "Бета Фитнес"]
     assert await names(google_opportunity="true") == ["Gamma Gym"]
+    assert await names(lead_category=["NO_SITE", "SOCIAL_ONLY"]) == ["Alpha Gym", "Бета Фитнес"]
+    assert await names(lead_category="UNCHECKED") == ["Delta Gym"]
+    assert await names(target_key="gyms") == ["Alpha Gym", "Delta Gym", "Gamma Gym", "Бета Фитнес"]
 
 
 async def test_sorting(client: httpx.AsyncClient, leads: list[int]) -> None:
@@ -84,6 +85,17 @@ async def test_sorting(client: httpx.AsyncClient, leads: list[int]) -> None:
         "items"
     ]
     assert by_reviews[0]["name"] == "Gamma Gym"
+    # Default: best deals first (price x odds); no phone = nothing to call = last.
+    by_value = (await client.get("/api/leads")).json()["items"]
+    values = [i["expected_value"] for i in by_value]
+    assert values == sorted(values, reverse=True) and values[0] > 0
+    assert {i["name"]: i["lead_category"] for i in by_value} == {
+        "Alpha Gym": "NO_SITE",
+        "Бета Фитнес": "SOCIAL_ONLY",
+        "Gamma Gym": "NEW_BUSINESS",
+        "Delta Gym": "UNCHECKED",
+    }
+    assert next(i for i in by_value if i["name"] == "Gamma Gym")["expected_value"] == 0
     bad = await client.get("/api/leads", params={"sort": "drop table"})
     assert bad.status_code == 422
     assert bad.json()["detail"]["code"] == "validation_error"
@@ -274,12 +286,10 @@ async def test_settings_roundtrip_and_validation(client: httpx.AsyncClient) -> N
 
 
 async def test_search_requires_provider(client: httpx.AsyncClient) -> None:
-    r = await client.post("/api/search", json={"category": "gyms", "location": "Sofia"})
+    r = await client.post("/api/search", json={"location": "Sofia"})
     assert r.status_code == 503
     assert r.json()["detail"]["code"] == "provider_not_configured"
-    estimate = (
-        await client.post("/api/search/estimate", json={"category": "gyms", "location": "Sofia"})
-    ).json()
+    estimate = (await client.post("/api/search/estimate", json={"location": "Sofia"})).json()
     assert estimate["provider_configured"] is False
 
 
@@ -288,14 +298,9 @@ async def test_search_job_creation_and_cancel(
 ) -> None:
     monkeypatch.setattr(get_settings(), "provider_api_key", SecretStr("test-key"))
     fake_provider()
-    body = {
-        "category": "gyms",
-        "location": "Sofia",
-        "neighborhoods": ["Lozenets", "Mladost"],
-        "max_results": 100,
-    }
+    body = {"location": "Sofia", "target_leads": 100, "max_queries": 2}
     estimate = (await client.post("/api/search/estimate", json=body)).json()
-    assert estimate["queries"] == 2 and estimate["max_requests"] >= 2
+    assert estimate["queries"] == 2 and estimate["max_requests"] == 6
     assert estimate["sku"] == "text_search_enterprise"
     created = await client.post("/api/search", json=body)
     assert created.status_code == 202
@@ -307,31 +312,39 @@ async def test_search_job_creation_and_cancel(
     assert retried.status_code == 202 and retried.json()["retry_of_id"] == job["id"]
     listed = (await client.get("/api/search-jobs")).json()
     assert listed["total"] == 2
-    invalid = await client.post("/api/search", json={"category": "g", "location": "Sofia"})
+    invalid = await client.post("/api/search", json={"location": "S"})
     assert invalid.status_code == 422
+    too_many = await client.post("/api/search", json={"location": "Sofia", "target_leads": 1500})
+    assert too_many.status_code == 422
 
 
-async def test_presets_crud(client: httpx.AsyncClient) -> None:
-    presets = (await client.get("/api/presets")).json()
-    assert {p["key"] for p in presets} >= {"gyms", "beauty", "barbers", "restaurants", "dentists"}
-    created = await client.post(
-        "/api/presets",
-        json={
-            "key": "florists",
-            "label": "Florists",
-            "category_query": "florists",
-            "match_types": ["florist"],
-            "calling_window_start": "10:00",
-            "calling_window_end": "12:00",
-            "booking_oriented": False,
-        },
-    )
-    assert created.status_code == 201
-    preset_id = created.json()["id"]
-    updated = await client.patch(f"/api/presets/{preset_id}", json={"label": "Flower shops"})
-    assert updated.json()["label"] == "Flower shops"
-    assert (await client.post("/api/presets", json={**created.json(), "key": "florists"})).status_code == 409
-    assert (await client.delete(f"/api/presets/{preset_id}")).status_code == 200
+async def test_meta_lists_targets_and_categories(client: httpx.AsyncClient) -> None:
+    meta = (await client.get("/api/meta")).json()
+    keys = [t["key"] for t in meta["targets"]]
+    assert "plumbers" in keys and "dentists" in keys
+    categories = {c["key"]: c for c in meta["lead_categories"]}
+    assert categories["NO_SITE"]["sellable"] is True
+    assert categories["NOT_A_FIT"]["sellable"] is False
+    assert (await client.get("/api/presets")).status_code == 404
+
+
+async def test_reset_leads_keeps_do_not_contact(
+    client: httpx.AsyncClient, sessionmaker: async_sessionmaker[AsyncSession], leads: list[int]
+) -> None:
+    await client.post(f"/api/leads/{leads[0]}/call", json={"outcome": "DO_NOT_CONTACT"})
+    refused = await client.post("/api/admin/reset-leads", json={"confirm": "yes"})
+    assert refused.status_code == 422
+    r = await client.post("/api/admin/reset-leads", json={"confirm": "DELETE ALL LEADS"})
+    assert r.status_code == 200
+    assert r.json()["deleted"]["leads"] == 4 and r.json()["deleted"]["calls"] == 1
+    assert (await client.get("/api/leads")).json()["total"] == 0
+    async with sessionmaker() as session:
+        entries = (await session.execute(select(SuppressionEntry))).scalars().all()
+    assert [e.normalized_phone for e in entries] == ["+359880011234"]
+    # The number stays suppressed when the same business is found again.
+    await seed(sessionmaker, [make_place(1, name="Alpha Gym")])
+    lead = (await client.get("/api/leads")).json()["items"][0]
+    assert lead["suppressed"] is True
 
 
 async def test_dashboard(client: httpx.AsyncClient, leads: list[int]) -> None:
@@ -346,6 +359,16 @@ async def test_dashboard(client: httpx.AsyncClient, leads: list[int]) -> None:
     assert any(o["key"] == "NO_WEBSITE" for o in data["by_opportunity"])
     assert data["calls_by_outcome"] == [{"key": "INTERESTED", "count": 1}]
     assert "cost" in data["month"]
+    goal = data["goal"]
+    assert goal["weekly_goal"] == 500 and goal["calls_per_day"] == 150
+    assert goal["in_play_count"] == 1 and goal["in_play_value"] > 0
+    assert goal["won_value_7d"] == 0
+    # Ready to call = new (uncalled) leads with a phone in a sellable category: Бета only.
+    assert goal["ready_leads"] == 1
+    assert [c["key"] for c in data["by_category"]] == ["SOCIAL_ONLY", "UNCHECKED"]
+    await client.patch(f"/api/leads/{leads[0]}", json={"status": "WON"})
+    won = (await client.get("/api/dashboard")).json()["goal"]
+    assert won["won_count_7d"] == 1 and won["won_value_7d"] == 290 and won["in_play_count"] == 0
 
 
 async def test_bulk_update_skips_suppressed(client: httpx.AsyncClient, leads: list[int]) -> None:

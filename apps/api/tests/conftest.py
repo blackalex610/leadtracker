@@ -102,9 +102,7 @@ async def sessionmaker(engine: Any) -> AsyncIterator[async_sessionmaker[AsyncSes
     maker = app_db.get_sessionmaker()
     async with maker() as session:
         from app.api.deps import ensure_default_user
-        from app.services.presets import seed_builtin_presets
 
-        await seed_builtin_presets(session)
         await ensure_default_user(session)
     yield maker
     set_provider(None)

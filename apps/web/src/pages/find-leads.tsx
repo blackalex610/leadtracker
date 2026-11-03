@@ -1,48 +1,41 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ACTIVE_JOB_STATUSES,
+  CATEGORY_LABELS,
+  OFFER_LABELS,
+  SELLABLE_CATEGORIES,
+  type LeadCategory,
   type LeadListQuery,
   type LeadSummary,
-  type Priority,
   type SearchRequest,
+  type TargetMeta,
 } from "@leadtracker/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MapPinIcon, SearchIcon, SlidersHorizontalIcon } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { CrosshairIcon, SearchIcon, SlidersHorizontalIcon } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
-import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 
-import { DemoBadge, OpportunityTags, PriorityBadge, Rating } from "@/components/app/badges";
+import { CategoryBadge, DealValue, DemoBadge, Rating } from "@/components/app/badges";
 import { JobProgress } from "@/components/app/job-progress";
 import { PhoneLink } from "@/components/app/phone";
 import { EmptyState, ErrorState, InlineNotice, PageHeader } from "@/components/app/states";
 import { WebsiteCell } from "@/components/app/website-cell";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { api, errorMessage } from "@/lib/api";
-import { formatMoney } from "@/lib/format";
-import { keys, useLeads, useMeta, usePresets, useSearchJob, useSettings } from "@/lib/queries";
+import { formatMoney, jobTitle } from "@/lib/format";
+import { keys, useLeads, useMeta, useSearchJob, useSettings } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { searchSchema, toSearchRequest, type SearchFormInput, type SearchFormValues } from "@/features/search/search-schema";
 
-const QUALITY_TO_PRIORITY: Record<string, Priority[] | undefined> = {
-  any: undefined,
-  high: ["HOT"],
-  medium: ["WARM"],
-  low: ["COLD"],
-};
-
 export function FindLeadsPage() {
   const [params, setParams] = useSearchParams();
-  const location = useLocation();
-  const initialPreset = (location.state as { preset?: string } | null)?.preset ?? "gyms";
   const jobId = params.get("job") ? Number(params.get("job")) : null;
   const meta = useMeta();
   const settings = useSettings();
@@ -51,7 +44,10 @@ export function FindLeadsPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <PageHeader title="Find Leads" description="Search local businesses, audit their websites and score the opportunity" />
+      <PageHeader
+        title="Find Leads"
+        description="One click: finds local businesses that need a website or more customers, checks them and tells you what to sell"
+      />
       <div className="grid flex-1 gap-4 p-5 xl:grid-cols-[22rem_1fr]">
         <div className="flex flex-col gap-3">
           {blocked && (
@@ -64,29 +60,58 @@ export function FindLeadsPage() {
             </InlineNotice>
           )}
           {settings.data ? (
-            <SearchForm initialPreset={initialPreset} disabled={blocked} onStarted={(id) => setParams({ job: String(id) })} />
+            <SearchForm disabled={blocked} onStarted={(id) => setParams({ job: String(id) })} />
           ) : settings.error ? (
             <ErrorState error={settings.error} onRetry={() => void settings.refetch()} />
           ) : (
-            <Skeleton className="h-[34rem]" />
+            <Skeleton className="h-[22rem]" />
           )}
+          <WhatItLooksFor targets={meta.data?.targets ?? []} />
         </div>
         <div className="min-w-0">
-          {jobId ? <JobResults jobId={jobId} onRetried={(id) => setParams({ job: String(id) })} /> : <RecentHint />}
+          {jobId ? <JobResults jobId={jobId} onRetried={(id) => setParams({ job: String(id) })} /> : <Intro />}
         </div>
       </div>
     </div>
   );
 }
 
-function RecentHint() {
+function Intro() {
   return (
     <Card className="h-full">
       <EmptyState
-        icon={MapPinIcon}
-        title="Choose a niche and a location"
-        description="Results appear here as they are found. Re-running a search never creates duplicates — known businesses are updated, and provider responses are cached."
+        icon={CrosshairIcon}
+        title="Pick a city and hit Find leads"
+        description="It searches the business types most likely to need a website or more customers (trades, auto, clinics, salons, venues…), skips chains, closed and badly rated places, checks every website, and sorts what's left by the money each call is worth. Every click searches new ground — queries from the last 30 days are never repeated."
       />
+    </Card>
+  );
+}
+
+function WhatItLooksFor({ targets }: { targets: TargetMeta[] }) {
+  const groups = useMemo(() => {
+    const map = new Map<string, TargetMeta[]>();
+    for (const t of targets) map.set(t.group_label, [...(map.get(t.group_label) ?? []), t]);
+    return [...map.entries()];
+  }, [targets]);
+  if (!groups.length) return null;
+  return (
+    <Card className="p-3">
+      <details>
+        <summary className="cursor-pointer text-[13px] font-medium">What it searches for ({targets.length} business types)</summary>
+        <div className="mt-2 grid gap-2 text-xs">
+          {groups.map(([group, items]) => (
+            <div key={group}>
+              <p className="font-medium">{group}</p>
+              <p className="text-muted-foreground">{items.map((t) => t.label).join(" · ")}</p>
+            </div>
+          ))}
+          <p className="text-muted-foreground">
+            Owner-run businesses whose customers search Google on a phone and where one customer is worth far more than
+            a website costs. High-value types (trades, dentists, venues, driving schools) are offered the premium price.
+          </p>
+        </div>
+      </details>
     </Card>
   );
 }
@@ -100,56 +125,23 @@ function useDebounced<T>(value: T, ms: number): T {
   return debounced;
 }
 
-function SearchForm({ initialPreset, disabled, onStarted }: { initialPreset: string; disabled: boolean; onStarted: (jobId: number) => void }) {
+function SearchForm({ disabled, onStarted }: { disabled: boolean; onStarted: (jobId: number) => void }) {
   const client = useQueryClient();
   const meta = useMeta();
-  const presets = usePresets();
   const settings = useSettings();
-  const [showNeighborhoods, setShowNeighborhoods] = useState(false);
   const runtime = settings.data?.runtime;
+  const callsPerDay = runtime?.offers.calls_per_day ?? 150;
 
   const form = useForm<SearchFormInput, unknown, SearchFormValues>({
     resolver: zodResolver(searchSchema),
     defaultValues: {
-      preset_key: initialPreset,
       location: runtime?.general.default_city ?? "Sofia",
-      neighborhoods: [],
-      category: "gyms",
-      keywords: "",
-      min_rating: 4.0,
-      min_reviews: Number.NaN,
-      max_reviews: Number.NaN,
-      has_website: "any",
-      open_in_window: false,
-      window_start: runtime?.calling.window_start ?? "19:00",
-      window_end: runtime?.calling.window_end ?? "21:00",
-      lead_quality: "any",
-      max_results: runtime?.search.default_max_results ?? 60,
+      target_leads: runtime?.search.default_max_results ?? callsPerDay,
+      max_queries: 30,
+      use_neighborhoods: true,
       audit_websites: true,
     },
   });
-
-  const presetKey = useWatch({ control: form.control, name: "preset_key" });
-  const appliedPreset = useRef<string | null>(null);
-  useEffect(() => {
-    const preset = presets.data?.find((p) => p.key === presetKey);
-    // Apply a template only when the selection changes, never on a data refetch.
-    if (!preset || appliedPreset.current === presetKey) return;
-    appliedPreset.current = presetKey;
-    form.setValue("category", preset.category_query, { shouldValidate: true });
-    if (preset.keywords) form.setValue("keywords", preset.keywords);
-    if (preset.calling_window_start && preset.calling_window_end) {
-      form.setValue("window_start", preset.calling_window_start);
-      form.setValue("window_end", preset.calling_window_end);
-    }
-  }, [presetKey, presets.data, form]);
-
-  const location = useWatch({ control: form.control, name: "location" });
-  const neighborhoods = useMemo(() => {
-    const cities = meta.data?.cities ?? {};
-    const key = Object.keys(cities).find((c) => c.toLowerCase() === location.trim().toLowerCase());
-    return key ? cities[key] ?? [] : [];
-  }, [meta.data, location]);
 
   const values = useWatch({ control: form.control });
   const parsed = searchSchema.safeParse(values);
@@ -165,14 +157,15 @@ function SearchForm({ initialPreset, disabled, onStarted }: { initialPreset: str
     mutationFn: api.createSearch,
     onSuccess: (job) => {
       void client.invalidateQueries({ queryKey: keys.searchJobs });
-      toast.success("Search started");
+      toast.success("Finding leads…");
       onStarted(job.id);
     },
     onError: (e) => toast.error(errorMessage(e)),
   });
 
   const errors = form.formState.errors;
-  const selected = useWatch({ control: form.control, name: "neighborhoods" }) ?? [];
+  const target = typeof values.target_leads === "number" && Number.isFinite(values.target_leads) ? values.target_leads : 0;
+  const days = target > 0 ? target / callsPerDay : 0;
 
   return (
     <Card>
@@ -180,198 +173,80 @@ function SearchForm({ initialPreset, disabled, onStarted }: { initialPreset: str
         className="grid gap-3 p-3"
         noValidate
         onSubmit={form.handleSubmit((v) => start.mutate(toSearchRequest(v)))}
-        aria-label="Search businesses"
+        aria-label="Find leads"
       >
-        <div className="grid gap-1">
-          <Label htmlFor="preset">Niche template</Label>
-          <Controller
-            control={form.control}
-            name="preset_key"
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id="preset">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {presets.data?.map((p) => (
-                    <SelectItem key={p.key} value={p.key}>
-                      {p.label}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="custom">Custom category…</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-[1fr_7rem] gap-3">
           <div className="grid gap-1">
-            <Label htmlFor="category">Business category</Label>
-            <Input id="category" list="category-suggestions" aria-invalid={!!errors.category} {...form.register("category")} />
-            <datalist id="category-suggestions">
-              {meta.data?.category_suggestions.map((c) => <option key={c} value={c} />)}
-            </datalist>
-            {errors.category && <p className="text-xs text-bad">{errors.category.message}</p>}
-          </div>
-          <div className="grid gap-1">
-            <Label htmlFor="location">Location</Label>
+            <Label htmlFor="location">City</Label>
             <Input id="location" list="city-suggestions" aria-invalid={!!errors.location} {...form.register("location")} />
             <datalist id="city-suggestions">
-              {Object.keys(meta.data?.cities ?? {}).map((c) => <option key={c} value={c} />)}
+              {Object.keys(meta.data?.cities ?? {}).map((c) => (
+                <option key={c} value={c} />
+              ))}
             </datalist>
             {errors.location && <p className="text-xs text-bad">{errors.location.message}</p>}
           </div>
-        </div>
-
-        {neighborhoods.length > 0 && (
           <div className="grid gap-1">
-            <div className="flex items-center justify-between">
-              <Label>Neighborhoods {selected.length > 0 && <Badge variant="muted">{selected.length}</Badge>}</Label>
-              <Button type="button" variant="link" size="xs" onClick={() => setShowNeighborhoods((v) => !v)}>
-                {showNeighborhoods ? "Hide" : "Split search by neighborhood"}
-              </Button>
-            </div>
-            {showNeighborhoods && (
-              <Controller
-                control={form.control}
-                name="neighborhoods"
-                render={({ field }) => (
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex flex-wrap gap-1">
-                      {neighborhoods.map((n) => {
-                        const on = field.value.includes(n);
-                        return (
-                          <button
-                            key={n}
-                            type="button"
-                            aria-pressed={on}
-                            onClick={() => field.onChange(on ? field.value.filter((x) => x !== n) : [...field.value, n])}
-                            className={cn(
-                              "rounded border px-1.5 py-0.5 text-xs transition-colors",
-                              on ? "border-foreground bg-foreground text-background" : "hover:bg-accent",
-                            )}
-                          >
-                            {n}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <div className="flex gap-2 text-xs">
-                      <button type="button" className="underline" onClick={() => field.onChange(neighborhoods)}>
-                        Select all
-                      </button>
-                      <button type="button" className="underline" onClick={() => field.onChange([])}>
-                        Clear
-                      </button>
-                      <span className="text-muted-foreground">Each neighborhood is a separate query (up to 60 results each).</span>
-                    </div>
-                  </div>
-                )}
-              />
-            )}
+            <Label htmlFor="target_leads">Leads</Label>
+            <Input
+              id="target_leads"
+              type="number"
+              min={1}
+              max={2000}
+              aria-invalid={!!errors.target_leads}
+              {...form.register("target_leads", { valueAsNumber: true })}
+            />
           </div>
+        </div>
+        {errors.target_leads ? (
+          <p className="-mt-2 text-xs text-bad">{errors.target_leads.message}</p>
+        ) : (
+          days > 0 && (
+            <p className="-mt-2 text-xs text-muted-foreground">
+              ≈ {days < 1 ? `${Math.round(days * callsPerDay)} calls` : `${+days.toFixed(1)} day${days === 1 ? "" : "s"} of calls`} at{" "}
+              {callsPerDay}/day
+            </p>
+          )
         )}
 
-        <div className="grid gap-1">
-          <Label htmlFor="keywords">Keywords (optional)</Label>
-          <Input id="keywords" placeholder="e.g. crossfit, 24/7" {...form.register("keywords")} />
-        </div>
-
-        <div className="grid grid-cols-3 gap-3">
-          <div className="grid gap-1">
-            <Label htmlFor="min_rating">Min rating</Label>
-            <Input id="min_rating" type="number" step="0.1" min={0} max={5} {...form.register("min_rating", { valueAsNumber: true })} />
-          </div>
-          <div className="grid gap-1">
-            <Label htmlFor="min_reviews">Min reviews</Label>
-            <Input id="min_reviews" type="number" min={0} placeholder="—" {...form.register("min_reviews", { valueAsNumber: true })} />
-          </div>
-          <div className="grid gap-1">
-            <Label htmlFor="max_reviews">Max reviews</Label>
-            <Input id="max_reviews" type="number" min={0} placeholder="—" aria-invalid={!!errors.max_reviews} {...form.register("max_reviews", { valueAsNumber: true })} />
-          </div>
-        </div>
-        {errors.max_reviews && <p className="-mt-2 text-xs text-bad">{errors.max_reviews.message}</p>}
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="grid gap-1">
-            <Label htmlFor="has_website">Has website</Label>
-            <Controller
-              control={form.control}
-              name="has_website"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="has_website">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="any">Any</SelectItem>
-                    <SelectItem value="yes">Yes</SelectItem>
-                    <SelectItem value="no">No</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </div>
-          <div className="grid gap-1">
-            <Label htmlFor="lead_quality">Lead quality</Label>
-            <Controller
-              control={form.control}
-              name="lead_quality"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="lead_quality">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="any">Any</SelectItem>
-                    <SelectItem value="high">High (HOT)</SelectItem>
-                    <SelectItem value="medium">Medium (WARM)</SelectItem>
-                    <SelectItem value="low">Low (COLD)</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </div>
-        </div>
-
-        <div className="grid gap-1.5">
-          <label className="flex items-center gap-2 text-[13px]">
-            <Controller
-              control={form.control}
-              name="open_in_window"
-              render={({ field }) => <Switch checked={field.value} onCheckedChange={field.onChange} />}
-            />
-            Open during calling hours
-          </label>
-          {values.open_in_window && (
+        <details className="text-[13px]">
+          <summary className="cursor-pointer text-xs text-muted-foreground">Options</summary>
+          <div className="mt-2 grid gap-2">
+            <label className="flex items-center gap-2">
+              <Controller
+                control={form.control}
+                name="use_neighborhoods"
+                render={({ field }) => <Switch checked={field.value} onCheckedChange={field.onChange} />}
+              />
+              Go neighborhood by neighborhood when the city is used up
+            </label>
+            <label className="flex items-center gap-2">
+              <Controller
+                control={form.control}
+                name="audit_websites"
+                render={({ field }) => <Switch checked={field.value} onCheckedChange={field.onChange} />}
+              />
+              Check websites (finds broken and outdated sites)
+            </label>
             <div className="flex items-center gap-2">
-              <Input aria-label="Window start" className="w-20" {...form.register("window_start")} />
-              <span className="text-muted-foreground">–</span>
-              <Input aria-label="Window end" className="w-20" {...form.register("window_end")} />
+              <Input
+                id="max_queries"
+                type="number"
+                min={1}
+                max={200}
+                className="w-20"
+                aria-label="Max queries"
+                {...form.register("max_queries", { valueAsNumber: true })}
+              />
+              <span className="text-xs text-muted-foreground">max queries (cost cap, each = up to 3 requests)</span>
             </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-2 items-end gap-3">
-          <div className="grid gap-1">
-            <Label htmlFor="max_results">Max results</Label>
-            <Input id="max_results" type="number" min={1} max={2000} {...form.register("max_results", { valueAsNumber: true })} />
           </div>
-          <label className="flex h-8 items-center gap-2 text-[13px]">
-            <Controller
-              control={form.control}
-              name="audit_websites"
-              render={({ field }) => <Switch checked={field.value} onCheckedChange={field.onChange} />}
-            />
-            Audit websites
-          </label>
-        </div>
+        </details>
 
         <EstimateLine loading={estimate.isFetching} data={estimate.data} />
 
-        <Button type="submit" disabled={disabled || start.isPending}>
-          <SearchIcon /> {start.isPending ? "Starting…" : "Search"}
+        <Button type="submit" size="lg" disabled={disabled || start.isPending || estimate.data?.queries === 0}>
+          <SearchIcon /> {start.isPending ? "Starting…" : `Find ${target || ""} leads`}
         </Button>
       </form>
     </Card>
@@ -380,35 +255,60 @@ function SearchForm({ initialPreset, disabled, onStarted }: { initialPreset: str
 
 function EstimateLine({ loading, data }: { loading: boolean; data: Awaited<ReturnType<typeof api.estimateSearch>> | undefined }) {
   if (!data) return <p className="text-xs text-muted-foreground">{loading ? "Estimating cost…" : " "}</p>;
+  if (data.queries === 0) {
+    return (
+      <p className="text-xs text-warm" aria-live="polite">
+        Every search for this city ran in the last 30 days. Try another city or turn on neighborhoods.
+      </p>
+    );
+  }
   if (data.demo_mode) return <p className="text-xs text-muted-foreground">Demo mode: synthetic results, no API cost.</p>;
   return (
     <p className="text-xs text-muted-foreground" aria-live="polite">
-      {data.queries} {data.queries === 1 ? "query" : "queries"} · up to {data.max_requests} billable request
-      {data.max_requests === 1 ? "" : "s"}
+      Up to {data.queries} new {data.queries === 1 ? "query" : "queries"} / {data.max_requests} request
+      {data.max_requests === 1 ? "" : "s"} — stops as soon as it has enough leads
       {data.estimated_max_cost !== null && (
         <>
           {" "}· max ≈ <span className="font-medium text-foreground">{formatMoney(data.estimated_max_cost_display, data.display_currency)}</span>
           {data.free_units_remaining !== null && data.free_units_remaining > 0 && ` (${data.free_units_remaining} free requests left this month)`}
         </>
       )}
-      {" "}· cached results cost nothing.
+      .
     </p>
   );
+}
+
+interface CategoryTotal {
+  category: LeadCategory;
+  count: number;
+  value: number;
+}
+
+function totalsByCategory(leads: LeadSummary[]): CategoryTotal[] {
+  const map = new Map<LeadCategory, CategoryTotal>();
+  for (const lead of leads) {
+    const category = lead.lead_category ?? "UNCHECKED";
+    const row = map.get(category) ?? { category, count: 0, value: 0 };
+    row.count += 1;
+    row.value += lead.deal_value;
+    map.set(category, row);
+  }
+  const order = [...SELLABLE_CATEGORIES, "UNCHECKED", "NOT_A_FIT"] as LeadCategory[];
+  return [...map.values()].sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category));
 }
 
 function JobResults({ jobId, onRetried }: { jobId: number; onRetried: (id: number) => void }) {
   const navigate = useNavigate();
   const job = useSearchJob(jobId);
   const [showFiltered, setShowFiltered] = useState(false);
+  const [only, setOnly] = useState<LeadCategory | null>(null);
   const active = job.data ? ACTIVE_JOB_STATUSES.includes(job.data.status) : false;
-  const quality = typeof job.data?.params.lead_quality === "string" ? job.data.params.lead_quality : "any";
   const query: LeadListQuery = {
     job_id: jobId,
     job_matched_only: !showFiltered,
-    priority: QUALITY_TO_PRIORITY[quality],
-    sort: "priority",
+    sort: "expected_value",
     order: "desc",
-    page_size: 100,
+    page_size: 200,
   };
   const leads = useLeads(query, { enabled: !!job.data });
   // Refresh results whenever the job reports progress (and once more when it finishes).
@@ -420,21 +320,27 @@ function JobResults({ jobId, onRetried }: { jobId: number; onRetried: (id: numbe
 
   if (job.error) return <ErrorState error={job.error} onRetry={() => void job.refetch()} />;
   if (!job.data) return <Skeleton className="h-24" />;
-  const filteredOut = Number(job.data.counters.filtered_out ?? 0);
+  const filteredOut = Number(job.data.counters.filtered_out ?? 0) + Number(job.data.counters.dropped_after_audit ?? 0);
+  const items = leads.data?.items ?? [];
+  const totals = totalsByCategory(items);
+  const pipeline = items.reduce((sum, l) => sum + l.deal_value, 0);
+  const shown = only ? items.filter((l) => (l.lead_category ?? "UNCHECKED") === only) : items;
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-[13px] font-semibold">
-          {String(job.data.params.category)} in {String(job.data.params.location)}
-          {Array.isArray(job.data.params.neighborhoods) && job.data.params.neighborhoods.length > 0 && (
-            <span className="font-normal text-muted-foreground"> · {job.data.params.neighborhoods.length} neighborhoods</span>
+          {jobTitle(job.data.params)}
+          {pipeline > 0 && (
+            <span className="font-normal text-muted-foreground">
+              {" "}· €{pipeline.toLocaleString()} in offers
+            </span>
           )}
         </h2>
         <div className="flex items-center gap-2">
           {filteredOut > 0 && (
             <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Switch checked={showFiltered} onCheckedChange={setShowFiltered} /> Show {filteredOut} filtered out
+              <Switch checked={showFiltered} onCheckedChange={setShowFiltered} /> Show {filteredOut} skipped
             </label>
           )}
           <Button size="xs" variant="outline" asChild>
@@ -445,21 +351,46 @@ function JobResults({ jobId, onRetried }: { jobId: number; onRetried: (id: numbe
         </div>
       </div>
       <JobProgress job={job.data} onRetried={(j) => onRetried(j.id)} />
-      {leads.data && leads.data.items.length === 0 && !active ? (
+      {totals.length > 0 && (
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by category">
+          {totals.map((t) => (
+            <button
+              key={t.category}
+              type="button"
+              aria-pressed={only === t.category}
+              onClick={() => setOnly(only === t.category ? null : t.category)}
+              className={cn(
+                "rounded-md border px-2 py-1 text-left text-xs transition-colors hover:bg-accent",
+                only === t.category && "border-foreground bg-accent",
+              )}
+            >
+              <span className="font-medium">{CATEGORY_LABELS[t.category]}</span>{" "}
+              <span className="tabular text-muted-foreground">
+                {t.count}
+                {t.value > 0 && ` · €${t.value.toLocaleString()}`}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      {leads.data && items.length === 0 && !active ? (
         <Card>
-          <EmptyState title="No businesses matched" description="Try a broader category, lower the minimum rating or remove filters." />
+          <EmptyState
+            title="No new leads this time"
+            description="Everything found was a chain, closed, already in your list or already has a good website. Click Find leads again — it moves on to the next business types."
+          />
         </Card>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-3" aria-busy={active}>
-          {leads.data?.items.map((lead) => (
+          {shown.map((lead) => (
             <ResultCard key={lead.id} lead={lead} onOpen={() => navigate(`/leads/${lead.id}`)} />
           ))}
           {!leads.data && Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-36" />)}
         </div>
       )}
-      {leads.data && leads.data.total > leads.data.items.length && (
+      {leads.data && leads.data.total > items.length && (
         <p className="text-xs text-muted-foreground">
-          Showing {leads.data.items.length} of {leads.data.total}.{" "}
+          Showing {items.length} of {leads.data.total}.{" "}
           <Link to={`/leads?job_id=${jobId}`} className="underline">
             See all in the lead table
           </Link>
@@ -470,6 +401,7 @@ function JobResults({ jobId, onRetried }: { jobId: number; onRetried: (id: numbe
 }
 
 function ResultCard({ lead, onOpen }: { lead: LeadSummary; onOpen: () => void }) {
+  const category = lead.lead_category;
   return (
     <Card
       role="link"
@@ -488,7 +420,7 @@ function ResultCard({ lead, onOpen }: { lead: LeadSummary; onOpen: () => void })
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {lead.is_demo && <DemoBadge />}
-          <PriorityBadge priority={lead.priority} />
+          <CategoryBadge category={category} />
         </div>
       </div>
       <div className="flex items-center justify-between text-xs">
@@ -501,17 +433,16 @@ function ResultCard({ lead, onOpen }: { lead: LeadSummary; onOpen: () => void })
           suppressed={lead.suppressed}
         />
       </div>
-      <dl className="grid grid-cols-[5.5rem_1fr] gap-x-2 gap-y-1 text-xs">
+      <dl className="grid grid-cols-[4.5rem_1fr] gap-x-2 gap-y-1 text-xs">
+        <dt className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Sell</dt>
+        <dd className="flex min-w-0 items-center justify-between gap-2">
+          <span className="truncate font-medium">{category ? OFFER_LABELS[category] : "—"}</span>
+          <DealValue value={lead.deal_value} odds={lead.close_odds} />
+        </dd>
         <dt className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Website</dt>
         <dd className="min-w-0 truncate">
           <WebsiteCell lead={lead} />
-          {lead.website_health_score !== null && (
-            <span className="ml-1 text-muted-foreground">· health {lead.website_health_score}</span>
-          )}
-        </dd>
-        <dt className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Opportunity</dt>
-        <dd>
-          <OpportunityTags types={lead.opportunity_types} max={3} />
+          {lead.website_health_score !== null && <span className="ml-1 text-muted-foreground">· health {lead.website_health_score}</span>}
         </dd>
       </dl>
       {lead.top_reason && <p className="line-clamp-1 text-xs text-muted-foreground">Why: {lead.top_reason}</p>}

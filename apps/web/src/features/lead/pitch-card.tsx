@@ -45,6 +45,11 @@ export function PitchCard({ lead, defaultLanguage = "en" }: { lead: LeadDetail; 
       </CardHeader>
       <CardContent className="grid gap-2">
         <blockquote className="border-l-2 pl-3 text-[13px] leading-relaxed">{pitch.text}</blockquote>
+        {pitch.ask && (
+          <p className="text-xs">
+            <span className="font-medium">Close on:</span> {pitch.ask}
+          </p>
+        )}
         <p className="text-[11px] text-muted-foreground">
           Built only from observed signals — adapt it, never claim more than what was observed.
         </p>

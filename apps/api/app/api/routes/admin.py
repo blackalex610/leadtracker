@@ -1,4 +1,4 @@
-"""Settings, usage, niche presets and the suppression list."""
+"""Settings, usage, data reset and the suppression list."""
 
 from __future__ import annotations
 
@@ -8,17 +8,16 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, SessionDep
+from app.api.deps import AdminUser, CurrentUser, SessionDep
 from app.config import get_settings
 from app.core.enums import JobKind
 from app.core.phone import normalize_phone
-from app.models import Business, NichePreset, SuppressionEntry
+from app.models import Business, SuppressionEntry
 from app.providers.registry import provider_status
-from app.schemas.common import OkResponse
 from app.schemas.dashboard import SettingsOut, UsageOut
 from app.schemas.leads import JobRef
-from app.schemas.misc import PresetCreate, PresetOut, PresetUpdate, SuppressionCreate, SuppressionOut
-from app.services.presets import preset_usage
+from app.schemas.misc import ResetRequest, ResetResult, SuppressionCreate, SuppressionOut
+from app.services.reset import RESET_CONFIRMATION, reset_lead_data
 from app.services.settings import RuntimeSettings, load_settings, update_settings
 from app.services.suppression import reenable, suppress
 from app.services.usage import monthly_usage
@@ -94,55 +93,17 @@ async def usage(session: SessionDep, _user: CurrentUser) -> UsageOut:
     return UsageOut.model_validate(await monthly_usage(session, runtime.pricing))
 
 
-# --- presets -------------------------------------------------------------------------------------
-@router.get("/presets", response_model=list[PresetOut], tags=["presets"])
-async def list_presets(session: SessionDep, _user: CurrentUser) -> list[PresetOut]:
-    usage_counts = await preset_usage(session)
-    presets = (
-        await session.execute(select(NichePreset).order_by(NichePreset.sort_order, NichePreset.id))
-    ).scalars()
-    return [
-        PresetOut.model_validate(p).model_copy(update={"lead_count": usage_counts.get(p.key, 0)})
-        for p in presets
-    ]
-
-
-@router.post("/presets", response_model=PresetOut, status_code=status.HTTP_201_CREATED, tags=["presets"])
-async def create_preset(body: PresetCreate, session: SessionDep, _user: CurrentUser) -> PresetOut:
-    exists = (await session.execute(select(NichePreset.id).where(NichePreset.key == body.key))).first()
-    if exists:
+# --- reset ----------------------------------------------------------------------------------------
+@router.post("/admin/reset-leads", response_model=ResetResult, tags=["settings"])
+async def reset_leads(body: ResetRequest, session: SessionDep, _admin: AdminUser) -> ResetResult:
+    """Delete every lead, call, note, audit and search job. Users, settings and the
+    do-not-contact list are kept."""
+    if body.confirm != RESET_CONFIRMATION:
         raise HTTPException(
-            status_code=409, detail={"code": "duplicate", "message": "A preset with this key exists"}
+            status_code=422,
+            detail={"code": "confirmation_required", "message": f'Type "{RESET_CONFIRMATION}" to confirm'},
         )
-    preset = NichePreset(**body.model_dump(mode="json"), is_builtin=False)
-    session.add(preset)
-    await session.commit()
-    await session.refresh(preset)
-    return PresetOut.model_validate(preset)
-
-
-@router.patch("/presets/{preset_id}", response_model=PresetOut, tags=["presets"])
-async def update_preset(
-    preset_id: int, body: PresetUpdate, session: SessionDep, _user: CurrentUser
-) -> PresetOut:
-    preset = await session.get(NichePreset, preset_id)
-    if preset is None:
-        raise HTTPException(status_code=404, detail={"code": "not_found", "message": "Preset not found"})
-    for key, value in body.model_dump(mode="json", exclude_unset=True).items():
-        setattr(preset, key, value)
-    await session.commit()
-    await session.refresh(preset)
-    return PresetOut.model_validate(preset)
-
-
-@router.delete("/presets/{preset_id}", response_model=OkResponse, tags=["presets"])
-async def delete_preset(preset_id: int, session: SessionDep, _user: CurrentUser) -> OkResponse:
-    preset = await session.get(NichePreset, preset_id)
-    if preset is None:
-        raise HTTPException(status_code=404, detail={"code": "not_found", "message": "Preset not found"})
-    await session.delete(preset)
-    await session.commit()
-    return OkResponse()
+    return ResetResult(deleted=await reset_lead_data(session))
 
 
 # --- suppression -----------------------------------------------------------------------------------

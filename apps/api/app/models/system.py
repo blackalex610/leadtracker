@@ -4,10 +4,10 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, SmallInteger, String, func
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, TimestampMixin
+from app.models.base import Base
 
 
 class ApiUsage(Base):
@@ -51,31 +51,6 @@ class AppSetting(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     updated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
-
-
-class NichePreset(TimestampMixin, Base):
-    """Reusable search/calling template ("GYMS", "BEAUTY", ...). Built-ins are
-    seeded but fully editable."""
-
-    __tablename__ = "niche_presets"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    key: Mapped[str] = mapped_column(String(64), unique=True)
-    label: Mapped[str] = mapped_column(String(120))
-    label_bg: Mapped[str | None] = mapped_column(String(120))
-    category_query: Mapped[str] = mapped_column(String(200))
-    included_type: Mapped[str | None] = mapped_column(String(100))
-    keywords: Mapped[str | None] = mapped_column(String(300))
-    match_types: Mapped[list[str]] = mapped_column(ARRAY(String(100)), default=list, server_default="{}")
-    calling_window_start: Mapped[str | None] = mapped_column(String(5))
-    calling_window_end: Mapped[str | None] = mapped_column(String(5))
-    booking_oriented: Mapped[bool] = mapped_column(Boolean, default=False)
-    discovery_dependent: Mapped[bool] = mapped_column(Boolean, default=True)
-    strong_opportunities: Mapped[list[str]] = mapped_column(
-        ARRAY(String(40)), default=list, server_default="{}"
-    )
-    is_builtin: Mapped[bool] = mapped_column(Boolean, default=False)
-    sort_order: Mapped[int] = mapped_column(SmallInteger, default=100)
 
 
 class ImportBatch(Base):

@@ -1,7 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { RuleKey, RuntimeSettings, SettingsOut } from "@leadtracker/shared";
+import {
+  CATEGORY_LABELS,
+  OFFER_LABELS,
+  SELLABLE_CATEGORIES,
+  type RuleKey,
+  type RuntimeSettings,
+  type SettingsOut,
+} from "@leadtracker/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2Icon, KeyRoundIcon, RefreshCwIcon, ShieldOffIcon, XCircleIcon } from "lucide-react";
+import { CheckCircle2Icon, KeyRoundIcon, RefreshCwIcon, ShieldOffIcon, Trash2Icon, XCircleIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import {
   Controller,
@@ -30,6 +37,7 @@ import { keys, useMeta, useSettings, useUpdateSettings, useUsage, useUsers } fro
 
 const TABS = [
   ["general", "General"],
+  ["offers", "Offers & goal"],
   ["provider", "Provider"],
   ["scoring", "Scoring"],
   ["audit", "Website audit"],
@@ -38,6 +46,7 @@ const TABS = [
   ["pricing", "Pricing & usage"],
   ["suppression", "Do not contact"],
   ["users", "Users"],
+  ["reset", "Reset data"],
 ] as const;
 
 export default function SettingsPage() {
@@ -61,6 +70,7 @@ export default function SettingsPage() {
             ))}
           </TabsList>
           <TabsContent value="general"><GeneralTab data={settings.data} /></TabsContent>
+          <TabsContent value="offers"><OffersTab data={settings.data} /></TabsContent>
           <TabsContent value="provider"><ProviderTab data={settings.data} /></TabsContent>
           <TabsContent value="scoring"><ScoringTab data={settings.data} /></TabsContent>
           <TabsContent value="audit"><AuditTab data={settings.data} /></TabsContent>
@@ -69,6 +79,7 @@ export default function SettingsPage() {
           <TabsContent value="pricing"><PricingTab data={settings.data} /></TabsContent>
           <TabsContent value="suppression"><SuppressionTab /></TabsContent>
           <TabsContent value="users"><UsersTab data={settings.data} /></TabsContent>
+          <TabsContent value="reset"><ResetTab /></TabsContent>
         </Tabs>
       )}
     </div>
@@ -164,6 +175,172 @@ const hhmm = z.string().regex(/^([01]?\d|2[0-3]):[0-5]\d$/, "Use HH:MM");
 const int = (min: number, max: number) => z.number({ message: "Enter a number" }).int().min(min).max(max);
 
 // --- tabs --------------------------------------------------------------------------------------------
+
+function OffersTab({ data }: { data: SettingsOut }) {
+  const client = useQueryClient();
+  const offers = data.runtime.offers;
+  const { save, pending } = useGroupSave("offers");
+  const [justSaved, setJustSaved] = useState(false);
+  const form = useForm({
+    defaultValues: {
+      weekly_goal: offers.weekly_goal ?? 500,
+      calls_per_day: offers.calls_per_day ?? 150,
+      offers: Object.fromEntries(
+        SELLABLE_CATEGORIES.map((c) => [
+          c,
+          {
+            price: offers.offers?.[c]?.price ?? 0,
+            premium_price: offers.offers?.[c]?.premium_price ?? 0,
+            odds: offers.offers?.[c]?.odds ?? 0,
+          },
+        ]),
+      ) as Record<string, { price: number; premium_price: number; odds: number }>,
+    },
+  });
+  const reprice = useMutation({
+    mutationFn: api.rescoreAll,
+    onSuccess: () => {
+      toast.success("Re-pricing all leads in the background");
+      setJustSaved(false);
+      void client.invalidateQueries({ queryKey: keys.leadsAll });
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
+  const submit = form.handleSubmit((v) =>
+    save(
+      {
+        weekly_goal: Number(v.weekly_goal),
+        calls_per_day: Number(v.calls_per_day),
+        offers: Object.fromEntries(
+          Object.entries(v.offers).map(([k, o]) => [
+            k,
+            { price: Number(o.price), premium_price: Number(o.premium_price), odds: Number(o.odds) },
+          ]),
+        ),
+      },
+      () => {
+        form.reset(v);
+        setJustSaved(true);
+      },
+    ),
+  );
+  return (
+    <form onSubmit={submit} className="grid max-w-4xl gap-4" noValidate>
+      <Card>
+        <CardHeader>
+          <CardTitle>Goal</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-3">
+          <NumberInput form={form} name="weekly_goal" label="Revenue goal per 7 days (€)" hint="Shown on the dashboard" />
+          <NumberInput form={form} name="calls_per_day" label="Calls per day" hint="Default calling-session size" />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>What each lead category is offered</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-2">
+          <p className="text-xs text-muted-foreground">
+            Premium price applies to high-value business types (trades, dentists, event halls, driving schools, guest
+            houses). Odds are relative close chances used to rank who to call first: price × odds. Tune them to your real
+            results after the first week.
+          </p>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Category</TableHead>
+                <TableHead>Offer</TableHead>
+                <TableHead className="w-24">Price €</TableHead>
+                <TableHead className="w-24">Premium €</TableHead>
+                <TableHead className="w-20">Odds %</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {SELLABLE_CATEGORIES.map((c) => (
+                <TableRow key={c}>
+                  <TableCell className="font-medium">{CATEGORY_LABELS[c]}</TableCell>
+                  <TableCell className="text-muted-foreground">{OFFER_LABELS[c]}</TableCell>
+                  <TableCell>
+                    <Input type="number" min={0} aria-label={`${CATEGORY_LABELS[c]} price`} {...form.register(`offers.${c}.price`, { valueAsNumber: true })} />
+                  </TableCell>
+                  <TableCell>
+                    <Input type="number" min={0} aria-label={`${CATEGORY_LABELS[c]} premium price`} {...form.register(`offers.${c}.premium_price`, { valueAsNumber: true })} />
+                  </TableCell>
+                  <TableCell>
+                    <Input type="number" min={0} max={100} aria-label={`${CATEGORY_LABELS[c]} odds`} {...form.register(`offers.${c}.odds`, { valueAsNumber: true })} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+      <SaveBar
+        pending={pending}
+        dirty={form.formState.isDirty}
+        extra={
+          justSaved && (
+            <Button type="button" size="sm" variant="outline" onClick={() => reprice.mutate()} disabled={reprice.isPending}>
+              <RefreshCwIcon /> Re-price existing leads
+            </Button>
+          )
+        }
+      />
+    </form>
+  );
+}
+
+const RESET_PHRASE = "DELETE ALL LEADS";
+
+function ResetTab() {
+  const client = useQueryClient();
+  const [text, setText] = useState("");
+  const reset = useMutation({
+    mutationFn: () => api.resetLeads(text),
+    onSuccess: (result) => {
+      const d = result.deleted;
+      toast.success(`Deleted ${d.leads ?? 0} leads, ${d.calls ?? 0} calls and ${d.jobs ?? 0} searches`);
+      setText("");
+      void client.invalidateQueries();
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
+  return (
+    <Card className="max-w-2xl border-bad/40">
+      <CardHeader>
+        <CardTitle>Start over</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-3 text-[13px]">
+        <p>
+          Permanently deletes every lead, call, note, website audit, calling session and search. Searches can then
+          be run again from the beginning.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Kept: users, all settings and prices, the do-not-contact list (those numbers stay blocked when found again), API
+          usage history and the provider cache. Admins only. This cannot be undone.
+        </p>
+        <form
+          className="flex flex-wrap items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (text === RESET_PHRASE) reset.mutate();
+          }}
+        >
+          <Input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={`Type ${RESET_PHRASE}`}
+            aria-label="Confirmation phrase"
+            className="w-56"
+          />
+          <Button type="submit" variant="destructive" size="sm" disabled={text !== RESET_PHRASE || reset.isPending}>
+            <Trash2Icon /> {reset.isPending ? "Deleting…" : "Delete all leads"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
 
 const generalSchema = z.object({
   default_country: z.string().length(2, "2-letter country code"),
@@ -442,7 +619,7 @@ function ScoringTab({ data }: { data: SettingsOut }) {
       <Card>
         <CardHeader><CardTitle>Category knowledge</CardTitle></CardHeader>
         <CardContent className="grid gap-3">
-          <TextInput form={form} name="strong_types" label="Discovery-dependent Google types" hint="Used when a lead has no niche template" />
+          <TextInput form={form} name="strong_types" label="Discovery-dependent Google types" hint="Used for leads not found by a built-in search (e.g. CSV imports)" />
           <TextInput form={form} name="booking_types" label="Booking-oriented Google types" />
         </CardContent>
       </Card>
@@ -525,8 +702,8 @@ function SearchTab({ data }: { data: SettingsOut }) {
       <Card>
         <CardHeader><CardTitle>Search jobs</CardTitle></CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-3">
-          <NumberInput form={form} name="default_max_results" label="Default max results" />
-          <NumberInput form={form} name="max_results_limit" label="Max results limit" hint="Hard cap per search (cost control)" />
+          <NumberInput form={form} name="default_max_results" label="Leads per Find-leads click" hint="150 = one day of calls" />
+          <NumberInput form={form} name="max_results_limit" label="Max leads per search" hint="Hard cap per search (cost control)" />
           <NumberInput form={form} name="provider_requests_per_second" label="Provider requests / second" step={0.5} />
           <NumberInput form={form} name="provider_concurrency" label="Provider concurrency" />
           <NumberInput form={form} name="cache_ttl_hours" label="Result cache (hours)" hint="Identical searches within this window cost nothing" />

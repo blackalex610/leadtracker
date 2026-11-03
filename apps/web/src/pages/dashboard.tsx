@@ -12,7 +12,7 @@ import {
 import { ArrowRightIcon, SearchIcon } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 
-import { OpportunityTags, PriorityBadge } from "@/components/app/badges";
+import { CategoryBadge, DealValue } from "@/components/app/badges";
 import { BarList } from "@/components/app/bar-list";
 import { PhoneLink } from "@/components/app/phone";
 import { StartCallingDialog } from "@/components/app/start-calling-dialog";
@@ -20,8 +20,9 @@ import { EmptyState, ErrorState, InlineNotice, PageHeader } from "@/components/a
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDateTime, formatMoney, formatNumber, relativeTime } from "@/lib/format";
+import { formatDateTime, formatMoney, formatNumber, jobTitle, relativeTime } from "@/lib/format";
 import { useDashboard, useMeta } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
@@ -63,7 +64,7 @@ function StatTile({ tile }: { tile: Tile }) {
 function LeadMiniRow({ lead, right }: { lead: LeadSummary; right?: React.ReactNode }) {
   return (
     <li className="grid grid-cols-[auto_1fr_auto] items-center gap-2 border-b px-3 py-1.5 last:border-0">
-      <PriorityBadge priority={lead.priority} />
+      <CategoryBadge category={lead.lead_category} />
       <div className="min-w-0">
         <Link to={`/leads/${lead.id}`} className="block truncate font-medium hover:underline">
           {lead.name}
@@ -127,6 +128,8 @@ export function DashboardPage() {
           <ErrorState error={dashboard.error} onRetry={() => void dashboard.refetch()} />
         ) : (
           <>
+            {d && <GoalCard goal={d.goal} />}
+
             <section aria-label="Key figures" className="grid grid-cols-2 gap-2 sm:grid-cols-5 2xl:grid-cols-10">
               {d
                 ? tiles(d).map((t) => <StatTile key={t.label} tile={t} />)
@@ -138,7 +141,7 @@ export function DashboardPage() {
                 <EmptyState
                   icon={SearchIcon}
                   title="No leads yet"
-                  description="Run your first search (e.g. gyms in Sofia) or import an existing CSV."
+                  description="Pick a city on Find leads and click once — it finds businesses that need a website and sorts them by deal value."
                   action={
                     <div className="flex gap-2">
                       <Button size="sm" asChild>
@@ -157,19 +160,19 @@ export function DashboardPage() {
                   <Card>
                     <CardHeader>
                       <CardTitle>Call these first</CardTitle>
-                      <Link to="/leads?priority=HOT&contacted=false" className="text-xs text-muted-foreground hover:underline">
-                        All uncontacted HOT <ArrowRightIcon className="inline size-3" />
+                      <Link to="/leads?contacted=false&sort=expected_value&order=desc" className="text-xs text-muted-foreground hover:underline">
+                        All uncalled, best deals first <ArrowRightIcon className="inline size-3" />
                       </Link>
                     </CardHeader>
                     {d ? (
                       d.top_hot.length ? (
                         <ul>
                           {d.top_hot.map((lead) => (
-                            <LeadMiniRow key={lead.id} lead={lead} right={<OpportunityTags types={lead.opportunity_types} max={2} className="hidden sm:flex" />} />
+                            <LeadMiniRow key={lead.id} lead={lead} right={<DealValue value={lead.deal_value} odds={lead.close_odds} />} />
                           ))}
                         </ul>
                       ) : (
-                        <EmptyState title="No uncontacted HOT leads" description="Run a search or review WARM leads." />
+                        <EmptyState title="Nobody left to call" description="Click Find leads for a fresh batch." />
                       )
                     ) : (
                       <div className="space-y-2 p-3">
@@ -205,12 +208,18 @@ export function DashboardPage() {
                 <div className="grid gap-4 lg:grid-cols-3">
                   <Card>
                     <CardHeader>
-                      <CardTitle>Leads by opportunity type</CardTitle>
+                      <CardTitle>Ready to call, by what to sell</CardTitle>
+                      <span className="text-xs text-muted-foreground">uncalled leads</span>
                     </CardHeader>
                     <CardContent className={cn(dashboard.isFetching && "opacity-80")}>
                       <BarList
-                        data={(d?.by_opportunity ?? []).map((o) => ({ key: o.key, label: o.label, value: o.count }))}
-                        onSelect={(key) => navigate(`/leads?opportunity=${key}`)}
+                        emptyLabel="No uncalled leads"
+                        data={(d?.by_category ?? []).map((c) => ({
+                          key: c.key,
+                          label: c.deal_value ? `${c.label} · €${c.deal_value.toLocaleString()}` : c.label,
+                          value: c.count,
+                        }))}
+                        onSelect={(key) => navigate(`/leads?lead_category=${key}&contacted=false`)}
                       />
                     </CardContent>
                   </Card>
@@ -273,7 +282,7 @@ export function DashboardPage() {
                     {d.recent_jobs.map((job) => (
                       <li key={job.id} className="flex items-center justify-between gap-2 border-b px-3 py-1.5 last:border-0">
                         <Link to={`/search?job=${job.id}`} className="min-w-0 truncate hover:underline">
-                          {String(job.params.category ?? "search")} in {String(job.params.location ?? "")}
+                          {jobTitle(job.params)}
                         </Link>
                         <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
                           <span className="tabular">{job.progress_total} found</span>
@@ -322,5 +331,54 @@ function MonthUsage({ month }: { month: Dashboard["month"] }) {
         </span>
       </div>
     </div>
+  );
+}
+
+/** The weekly money goal: won so far, what's in play, and whether the calls are on pace. */
+function GoalCard({ goal }: { goal: Dashboard["goal"] }) {
+  const target = goal.weekly_goal;
+  const won = goal.won_value_7d;
+  const percent = target > 0 ? Math.min(100, (won / target) * 100) : 0;
+  const callsTarget = goal.calls_per_day * 7;
+  const left = Math.max(0, target - won);
+  return (
+    <Card>
+      <CardContent className="grid gap-3 py-3 md:grid-cols-[2fr_1fr_1fr_1fr] md:items-center">
+        <div className="grid gap-1.5">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-[13px] font-medium">7-day goal</span>
+            <span className="text-xs text-muted-foreground tabular">
+              <span className="text-lg font-semibold text-foreground">€{won.toLocaleString()}</span> / €{target.toLocaleString()}
+            </span>
+          </div>
+          <Progress value={percent} aria-label="Revenue goal progress" />
+          <span className="text-xs text-muted-foreground">
+            {left > 0
+              ? `€${left.toLocaleString()} to go · ${goal.won_count_7d} deal${goal.won_count_7d === 1 ? "" : "s"} won (mark a lead Won to count it)`
+              : "Goal reached — keep going"}
+          </span>
+        </div>
+        <GoalStat label="In play" value={`€${goal.in_play_value.toLocaleString()}`} hint={`${goal.in_play_count} interested / proposal`} to="/leads?status=INTERESTED&status=QUALIFIED&status=PROPOSAL" />
+        <GoalStat label="Calls, last 7 days" value={`${formatNumber(goal.calls_7d)} / ${formatNumber(callsTarget)}`} hint={`target ${goal.calls_per_day}/day`} />
+        <GoalStat label="Ready to call" value={formatNumber(goal.ready_leads)} hint={`≈ €${goal.ready_expected_value.toLocaleString()} expected`} to="/leads?contacted=false&sort=expected_value&order=desc" />
+      </CardContent>
+    </Card>
+  );
+}
+
+function GoalStat({ label, value, hint, to }: { label: string; value: string; hint: string; to?: string }) {
+  const body = (
+    <>
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-lg font-semibold leading-6 tabular">{value}</span>
+      <span className="text-[11px] text-muted-foreground">{hint}</span>
+    </>
+  );
+  return to ? (
+    <Link to={to} className="flex flex-col rounded-md px-2 py-1 hover:bg-accent/50">
+      {body}
+    </Link>
+  ) : (
+    <div className="flex flex-col px-2 py-1">{body}</div>
   );
 }

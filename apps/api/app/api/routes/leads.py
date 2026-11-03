@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import distinct, func, select
+from sqlalchemy import func, select
 
 from app.api.deps import CurrentUser, SessionDep
 from app.core.enums import JobKind, LeadStatus, PhoneSource
@@ -33,7 +33,6 @@ from app.schemas.leads import (
 from app.services.businesses import record_from_place, set_website, upsert_business
 from app.services.calls import LeadSuppressedError, record_call
 from app.services.leads import LeadListQuery, lead_detail, list_leads
-from app.services.presets import load_niches
 from app.services.provider_gateway import ProviderGateway
 from app.services.scoring_service import rescore_business
 from app.services.settings import load_settings
@@ -86,13 +85,27 @@ async def facets(session: SessionDep, _user: CurrentUser) -> FacetsOut:
             .limit(100)
         )
     ).all()
-    niches = (
-        await session.execute(select(distinct(Business.niche_key)).where(Business.niche_key.is_not(None)))
-    ).scalars()
+    targets = (
+        await session.execute(
+            select(Business.target_key, func.count())
+            .where(Business.target_key.is_not(None))
+            .group_by(Business.target_key)
+            .order_by(func.count().desc())
+        )
+    ).all()
+    lead_categories = (
+        await session.execute(
+            select(Business.lead_category, func.count())
+            .where(Business.lead_category.is_not(None))
+            .group_by(Business.lead_category)
+            .order_by(func.count().desc())
+        )
+    ).all()
     return FacetsOut(
         categories=[FacetValue(value=c, count=n) for c, n in categories],
         cities=[FacetValue(value=c, count=n) for c, n in cities],
-        niches=sorted(niches),
+        targets=[FacetValue(value=c, count=n) for c, n in targets],
+        lead_categories=[FacetValue(value=c, count=n) for c, n in lead_categories],
     )
 
 
@@ -163,9 +176,6 @@ async def update_lead(lead_id: int, body: LeadUpdate, session: SessionDep, user:
         business.next_callback_at = body.next_callback_at
         changes["next_callback_at"] = body.next_callback_at.isoformat()
 
-    if body.niche_key is not None:
-        business.niche_key = body.niche_key or None
-        changes["niche_key"] = business.niche_key
         needs_rescore = True
 
     if body.website_url is not None and set_website(business, body.website_url or None):
@@ -221,7 +231,7 @@ async def update_lead(lead_id: int, body: LeadUpdate, session: SessionDep, user:
         session.add(LeadEvent(business_id=business.id, user_id=user.id, type="updated", data=changes))
     if needs_rescore:
         await session.flush()
-        await rescore_business(session, business, runtime, await load_niches(session))
+        await rescore_business(session, business, runtime)
     if audit_needed:
         await enqueue(
             session, JobKind.AUDIT, {"business_ids": [business.id], "force": True}, created_by_id=user.id
@@ -332,7 +342,7 @@ async def audit_many(body: AuditRequest, session: SessionDep, user: CurrentUser)
 async def rescore_lead(lead_id: int, session: SessionDep, _user: CurrentUser) -> LeadDetail:
     business = await _lead_or_404(session, lead_id)
     runtime = await load_settings(session)
-    await rescore_business(session, business, runtime, await load_niches(session))
+    await rescore_business(session, business, runtime)
     await session.commit()
     return await lead_detail(session, business, runtime)
 
@@ -356,7 +366,7 @@ async def refresh_lead(lead_id: int, session: SessionDep, user: CurrentUser) -> 
     outcome = await upsert_business(
         session, record_from_place(place), default_region=runtime.general.default_country, user_id=user.id
     )
-    await rescore_business(session, outcome.business, runtime, await load_niches(session))
+    await rescore_business(session, outcome.business, runtime)
     if outcome.website_changed and outcome.business.website_kind == "own":
         await enqueue(
             session, JobKind.AUDIT, {"business_ids": [business.id], "force": True}, created_by_id=user.id
@@ -385,7 +395,7 @@ async def call_lead(lead_id: int, body: CallCreate, session: SessionDep, user: C
     except LeadSuppressedError as exc:
         raise HTTPException(status_code=409, detail={"code": "do_not_contact", "message": str(exc)}) from exc
     if body.outcome.value == "WRONG_NUMBER":
-        await rescore_business(session, business, runtime, await load_niches(session))
+        await rescore_business(session, business, runtime)
     await session.commit()
     await session.refresh(call)
     await session.refresh(business)

@@ -85,7 +85,7 @@ An `IntegrityError` race on insert is retried as an update.
 | `suppression_list` | do-not-contact numbers; partial unique index on active phone |
 | `jobs`, `job_businesses`, `search_queries` | background jobs and their results |
 | `api_usage`, `provider_cache` | cost tracking and caching |
-| `app_settings`, `niche_presets`, `calling_sessions`, `import_batches`, `users` | configuration and workflow |
+| `app_settings`, `calling_sessions`, `import_batches`, `users` | configuration and workflow (ICP search targets are code: `app/data/targets.py`) |
 
 ## Authentication
 

@@ -1,4 +1,13 @@
-import type { CallOutcome, DataQuality, JobStatus, LeadStatus, OpportunityType, Priority, SortField } from "./types";
+import type {
+  CallOutcome,
+  DataQuality,
+  JobStatus,
+  LeadCategory,
+  LeadStatus,
+  OpportunityType,
+  Priority,
+  SortField,
+} from "./types";
 
 export const PRIORITY_LABELS: Record<Priority, string> = { HOT: "Hot", WARM: "Warm", COLD: "Cold" };
 export const PRIORITIES: Priority[] = ["HOT", "WARM", "COLD"];
@@ -53,6 +62,36 @@ export const OPPORTUNITY_LABELS: Record<OpportunityType, string> = {
 };
 export const OPPORTUNITY_TYPES = Object.keys(OPPORTUNITY_LABELS) as OpportunityType[];
 
+/** Lead categories = what to sell. Order = pitch order (best closers first). */
+export const CATEGORY_LABELS: Record<LeadCategory, string> = {
+  BROKEN_SITE: "Broken website",
+  NO_SITE: "No website",
+  SOCIAL_ONLY: "Facebook/Instagram only",
+  NEW_BUSINESS: "New business",
+  PLATFORM_ONLY: "Booking-platform only",
+  WEAK_SITE: "Weak / outdated site",
+  NO_BOOKING: "No online booking",
+  WEAK_GOOGLE: "Weak Google profile",
+  UNCHECKED: "Site not checked yet",
+  NOT_A_FIT: "Not a fit",
+};
+export const LEAD_CATEGORIES = Object.keys(CATEGORY_LABELS) as LeadCategory[];
+/** Categories worth calling (have an offer). */
+export const SELLABLE_CATEGORIES: LeadCategory[] = LEAD_CATEGORIES.filter((c) => c !== "UNCHECKED" && c !== "NOT_A_FIT");
+/** The offer pitched for each category. */
+export const OFFER_LABELS: Record<LeadCategory, string> = {
+  BROKEN_SITE: "Website rescue",
+  NO_SITE: "Starter website",
+  SOCIAL_ONLY: "Own website",
+  NEW_BUSINESS: "Launch package",
+  PLATFORM_ONLY: "Own site + direct booking",
+  WEAK_SITE: "Website redesign",
+  NO_BOOKING: "Online booking",
+  WEAK_GOOGLE: "Google profile boost",
+  UNCHECKED: "Check the site first",
+  NOT_A_FIT: "Skip",
+};
+
 export const DATA_QUALITY_LABELS: Record<DataQuality, string> = {
   EXCELLENT: "Excellent",
   GOOD: "Good",
@@ -71,6 +110,7 @@ export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
 export const ACTIVE_JOB_STATUSES: JobStatus[] = ["queued", "running"];
 
 export const SORT_LABELS: Record<SortField, string> = {
+  expected_value: "Best deals first",
   priority: "Priority",
   opportunity_score: "Opportunity score",
   website_score: "Website score",
@@ -94,7 +134,7 @@ export const JOB_STAGE_LABELS: Record<string, string> = {
   queued: "Waiting for a worker",
   requeued: "Waiting for a worker",
   starting: "Starting",
-  searching: "Searching businesses",
+  searching: "Finding businesses",
   auditing: "Auditing websites",
   scoring: "Scoring leads",
   cancelled: "Cancelled",

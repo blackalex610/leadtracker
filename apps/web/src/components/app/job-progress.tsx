@@ -51,16 +51,21 @@ export function JobProgress({ job, onRetried }: { job: JobOut; onRetried?: (job:
   const processed = job.progress_processed;
   const percent = total > 0 ? (processed / total) * 100 : active ? 5 : 100;
   const stage = JOB_STAGE_LABELS[job.stage ?? ""] ?? job.stage ?? "";
+  const target = counter(job, "target_leads");
+  const fresh = counter(job, "matched") - counter(job, "dropped_after_audit");
   const stats: [string, number][] = [
-    ["found", counter(job, "found") || total],
-    ["new", counter(job, "new")],
-    ["already known", counter(job, "existing")],
-    ["matched filters", counter(job, "matched")],
+    ["businesses checked", counter(job, "found") || total],
+    ["fresh leads", fresh],
+    ["not a fit (chain, closed, good site, low rating)", counter(job, "rejected_not_a_fit") + counter(job, "dropped_after_audit")],
+    ["no phone", counter(job, "rejected_no_phone")],
+    ["already in your list", counter(job, "rejected_already_known")],
     ["websites audited", counter(job, "audited")],
     ["audits failed", counter(job, "audit_failed")],
+    ["queries", counter(job, "queries_ok")],
     ["cached requests", counter(job, "cached_requests")],
     ["API requests", counter(job, "api_requests")],
   ];
+  const exhausted = job.errors.find((e) => e.code === "no_fresh_queries");
 
   return (
     <div className="flex flex-col gap-2 rounded-md border bg-card p-3" aria-live="polite">
@@ -70,7 +75,7 @@ export function JobProgress({ job, onRetried }: { job: JobOut; onRetried?: (job:
           <JobStatusBadge job={job} />
           <span className="text-[13px] font-medium">{active ? stage : JOB_STATUS_LABELS[job.status]}</span>
           <span className="text-xs text-muted-foreground tabular">
-            {processed} / {total} businesses processed
+            {target > 0 ? `${fresh} fresh leads (asked for ${target})` : `${processed} / ${total} businesses processed`}
           </span>
         </div>
         <div className="flex gap-2">
@@ -101,7 +106,12 @@ export function JobProgress({ job, onRetried }: { job: JobOut; onRetried?: (job:
           {job.error_message}
         </p>
       )}
-      {job.errors.length > 0 && !job.error_message && (
+      {exhausted && (
+        <p className="text-xs text-warm" role="status">
+          {String(exhausted.message)}
+        </p>
+      )}
+      {job.errors.length > 0 && !job.error_message && !exhausted && (
         <details className="text-xs text-muted-foreground">
           <summary className="cursor-pointer">{job.errors.length} issue(s) during the search</summary>
           <ul className="mt-1 list-disc pl-4">

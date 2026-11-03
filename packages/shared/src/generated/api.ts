@@ -623,25 +623,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/presets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Presets */
-        get: operations["list_presets_api_presets_get"];
-        put?: never;
-        /** Create Preset */
-        post: operations["create_preset_api_presets_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/presets/{preset_id}": {
+    "/api/admin/reset-leads": {
         parameters: {
             query?: never;
             header?: never;
@@ -650,13 +632,16 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post?: never;
-        /** Delete Preset */
-        delete: operations["delete_preset_api_presets__preset_id__delete"];
+        /**
+         * Reset Leads
+         * @description Delete every lead, call, note, audit and search job. Users, settings and the
+         *     do-not-contact list are kept.
+         */
+        post: operations["reset_leads_api_admin_reset_leads_post"];
+        delete?: never;
         options?: never;
         head?: never;
-        /** Update Preset */
-        patch: operations["update_preset_api_presets__preset_id__patch"];
+        patch?: never;
         trace?: never;
     };
     "/api/suppression": {
@@ -946,8 +931,10 @@ export interface components {
         };
         /** CallingFilters */
         CallingFilters: {
-            /** Niche Key */
-            niche_key?: string | null;
+            /** Categories */
+            categories?: components["schemas"]["LeadCategory"][];
+            /** Target Key */
+            target_key?: string | null;
             /** Category */
             category?: string | null;
             /** City */
@@ -1078,6 +1065,35 @@ export interface components {
              */
             default_session_limit: number;
         };
+        /** CategoryCount */
+        CategoryCount: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Count */
+            count: number;
+            /** Deal Value */
+            deal_value: number;
+            /** Expected Value */
+            expected_value: number;
+        };
+        /** CategoryMeta */
+        CategoryMeta: {
+            key: components["schemas"]["LeadCategory"];
+            /** Label */
+            label: string;
+            /** Label Bg */
+            label_bg: string;
+            /** Offer */
+            offer: string;
+            /** Offer Bg */
+            offer_bg: string;
+            /** Description */
+            description: string;
+            /** Sellable */
+            sellable: boolean;
+        };
         /** ContactOut */
         ContactOut: {
             /** Id */
@@ -1183,6 +1199,9 @@ export interface components {
         /** DashboardOut */
         DashboardOut: {
             kpis: components["schemas"]["DashboardKpis"];
+            goal: components["schemas"]["GoalProgress"];
+            /** By Category */
+            by_category: components["schemas"]["CategoryCount"][];
             /** By Opportunity */
             by_opportunity: components["schemas"]["OpportunityCount"][];
             /** Calls By Outcome */
@@ -1255,8 +1274,10 @@ export interface components {
             categories: components["schemas"]["FacetValue"][];
             /** Cities */
             cities: components["schemas"]["FacetValue"][];
-            /** Niches */
-            niches: string[];
+            /** Targets */
+            targets: components["schemas"]["FacetValue"][];
+            /** Lead Categories */
+            lead_categories: components["schemas"]["FacetValue"][];
         };
         /** GeneralSettings */
         GeneralSettings: {
@@ -1270,10 +1291,31 @@ export interface components {
             provider_language: string;
             /**
              * Pitch Language
-             * @default en
+             * @default bg
              * @enum {string}
              */
             pitch_language: "en" | "bg";
+        };
+        /** GoalProgress */
+        GoalProgress: {
+            /** Weekly Goal */
+            weekly_goal: number;
+            /** Calls Per Day */
+            calls_per_day: number;
+            /** Won Value 7D */
+            won_value_7d: number;
+            /** Won Count 7D */
+            won_count_7d: number;
+            /** In Play Value */
+            in_play_value: number;
+            /** In Play Count */
+            in_play_count: number;
+            /** Calls 7D */
+            calls_7d: number;
+            /** Ready Leads */
+            ready_leads: number;
+            /** Ready Expected Value */
+            ready_expected_value: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1426,6 +1468,12 @@ export interface components {
             /** Count */
             count: number;
         };
+        /**
+         * LeadCategory
+         * @description What to sell a lead (see app.scoring.category).
+         * @enum {string}
+         */
+        LeadCategory: "BROKEN_SITE" | "NO_SITE" | "SOCIAL_ONLY" | "NEW_BUSINESS" | "PLATFORM_ONLY" | "WEAK_SITE" | "NO_BOOKING" | "WEAK_GOOGLE" | "UNCHECKED" | "NOT_A_FIT";
         /** LeadDetail */
         LeadDetail: {
             /** Id */
@@ -1469,6 +1517,15 @@ export interface components {
             opportunity_types: components["schemas"]["OpportunityType"][];
             /** Top Reason */
             top_reason: string | null;
+            lead_category: components["schemas"]["LeadCategory"] | null;
+            /** Deal Value */
+            deal_value: number;
+            /** Close Odds */
+            close_odds: number;
+            /** Expected Value */
+            expected_value: number;
+            /** Target Key */
+            target_key: string | null;
             status: components["schemas"]["LeadStatus"];
             /** Suppressed */
             suppressed: boolean;
@@ -1498,10 +1555,14 @@ export interface components {
             primary_type: string | null;
             /** Types */
             types: string[];
-            /** Niche Key */
-            niche_key: string | null;
-            /** Niche Label */
-            niche_label: string | null;
+            /** Target Label */
+            target_label: string | null;
+            /** Category Reason */
+            category_reason: string | null;
+            /** Category Details */
+            category_details: {
+                [key: string]: unknown;
+            };
             /** Subcategory */
             subcategory: string | null;
             /** Description */
@@ -1627,6 +1688,15 @@ export interface components {
             opportunity_types: components["schemas"]["OpportunityType"][];
             /** Top Reason */
             top_reason: string | null;
+            lead_category: components["schemas"]["LeadCategory"] | null;
+            /** Deal Value */
+            deal_value: number;
+            /** Close Odds */
+            close_odds: number;
+            /** Expected Value */
+            expected_value: number;
+            /** Target Key */
+            target_key: string | null;
             status: components["schemas"]["LeadStatus"];
             /** Suppressed */
             suppressed: boolean;
@@ -1665,8 +1735,6 @@ export interface components {
             unassign?: boolean;
             /** Next Callback At */
             next_callback_at?: string | null;
-            /** Niche Key */
-            niche_key?: string | null;
             /** Website Url */
             website_url?: string | null;
             /** Add Phone */
@@ -1705,8 +1773,10 @@ export interface components {
             cities: {
                 [key: string]: string[];
             };
-            /** Category Suggestions */
-            category_suggestions: string[];
+            /** Targets */
+            targets: components["schemas"]["TargetMeta"][];
+            /** Lead Categories */
+            lead_categories: components["schemas"]["CategoryMeta"][];
             /** Lead Statuses */
             lead_statuses: components["schemas"]["LeadStatus"][];
             /** Call Outcomes */
@@ -1767,6 +1837,39 @@ export interface components {
              */
             created_at: string;
         };
+        /**
+         * OfferConfig
+         * @description Editable prices/odds per category (Settings → Offers).
+         */
+        OfferConfig: {
+            /** Offers */
+            offers: {
+                [key: string]: components["schemas"]["OfferSettings"];
+            };
+            /**
+             * Weekly Goal
+             * @description Revenue goal per 7 days (EUR)
+             * @default 500
+             */
+            weekly_goal: number;
+            /**
+             * Calls Per Day
+             * @default 150
+             */
+            calls_per_day: number;
+        };
+        /** OfferSettings */
+        OfferSettings: {
+            /** Price */
+            price: number;
+            /** Premium Price */
+            premium_price: number;
+            /**
+             * Odds
+             * @description Relative close odds in %, used to rank the calling queue
+             */
+            odds: number;
+        };
         /** OkResponse */
         OkResponse: {
             /**
@@ -1821,118 +1924,12 @@ export interface components {
             primary_opportunity: string | null;
             /** Talking Points */
             talking_points: string[];
-        };
-        /** PresetCreate */
-        PresetCreate: {
-            /** Label */
-            label: string;
-            /** Label Bg */
-            label_bg?: string | null;
-            /** Category Query */
-            category_query: string;
-            /** Included Type */
-            included_type?: string | null;
-            /** Keywords */
-            keywords?: string | null;
-            /** Match Types */
-            match_types?: string[];
-            /** Calling Window Start */
-            calling_window_start?: string | null;
-            /** Calling Window End */
-            calling_window_end?: string | null;
-            /**
-             * Booking Oriented
-             * @default false
-             */
-            booking_oriented?: boolean;
-            /**
-             * Discovery Dependent
-             * @default true
-             */
-            discovery_dependent?: boolean;
-            /** Strong Opportunities */
-            strong_opportunities?: components["schemas"]["OpportunityType"][];
-            /**
-             * Sort Order
-             * @default 100
-             */
-            sort_order?: number;
-            /** Key */
-            key: string;
-        };
-        /** PresetOut */
-        PresetOut: {
-            /** Label */
-            label: string;
-            /** Label Bg */
-            label_bg: string | null;
-            /** Category Query */
-            category_query: string;
-            /** Included Type */
-            included_type: string | null;
-            /** Keywords */
-            keywords: string | null;
-            /** Match Types */
-            match_types: string[];
-            /** Calling Window Start */
-            calling_window_start: string | null;
-            /** Calling Window End */
-            calling_window_end: string | null;
-            /**
-             * Booking Oriented
-             * @default false
-             */
-            booking_oriented: boolean;
-            /**
-             * Discovery Dependent
-             * @default true
-             */
-            discovery_dependent: boolean;
-            /** Strong Opportunities */
-            strong_opportunities: components["schemas"]["OpportunityType"][];
-            /**
-             * Sort Order
-             * @default 100
-             */
-            sort_order: number;
-            /** Id */
-            id: number;
-            /** Key */
-            key: string;
-            /** Is Builtin */
-            is_builtin: boolean;
-            /**
-             * Lead Count
-             * @default 0
-             */
-            lead_count: number;
-        };
-        /** PresetUpdate */
-        PresetUpdate: {
-            /** Label */
-            label?: string | null;
-            /** Label Bg */
-            label_bg?: string | null;
-            /** Category Query */
-            category_query?: string | null;
-            /** Included Type */
-            included_type?: string | null;
-            /** Keywords */
-            keywords?: string | null;
-            /** Match Types */
-            match_types?: string[] | null;
-            /** Calling Window Start */
-            calling_window_start?: string | null;
-            /** Calling Window End */
-            calling_window_end?: string | null;
-            /** Booking Oriented */
-            booking_oriented?: boolean | null;
-            /** Discovery Dependent */
-            discovery_dependent?: boolean | null;
-            /** Strong Opportunities */
-            strong_opportunities?: components["schemas"]["OpportunityType"][] | null;
-            /** Sort Order */
-            sort_order?: number | null;
+            /** Offer */
+            offer: string | null;
+            /** Price */
+            price: number | null;
+            /** Ask */
+            ask: string | null;
         };
         /** PricingSettings */
         PricingSettings: {
@@ -2008,6 +2005,18 @@ export interface components {
              */
             created_at: string;
         };
+        /** ResetRequest */
+        ResetRequest: {
+            /** Confirm */
+            confirm: string;
+        };
+        /** ResetResult */
+        ResetResult: {
+            /** Deleted */
+            deleted: {
+                [key: string]: number;
+            };
+        };
         /**
          * RuleKey
          * @enum {string}
@@ -2022,6 +2031,7 @@ export interface components {
             csv: components["schemas"]["CsvSettings"];
             pricing: components["schemas"]["PricingSettings"];
             scoring: components["schemas"]["ScoringConfig"];
+            offers: components["schemas"]["OfferConfig"];
         };
         /** ScoreReason */
         ScoreReason: {
@@ -2214,54 +2224,32 @@ export interface components {
         };
         /**
          * SearchRequest
-         * @description Parameters of a search job (also the POST /api/search body).
+         * @description Parameters of a find-leads job (also the POST /api/search body).
          */
         SearchRequest: {
-            /** Category */
-            category: string;
-            /** Location */
-            location: string;
-            /** Neighborhoods */
-            neighborhoods?: string[];
-            /** Keywords */
-            keywords?: string | null;
-            /** Preset Key */
-            preset_key?: string | null;
             /**
-             * Min Rating
-             * @default 4
+             * Location
+             * @default Sofia
              */
-            min_rating?: number | null;
-            /** Min Reviews */
-            min_reviews?: number | null;
-            /** Max Reviews */
-            max_reviews?: number | null;
+            location?: string;
             /**
-             * Has Website
-             * @default any
-             * @enum {string}
+             * Target Leads
+             * @description Fresh ICP leads to find
+             * @default 150
              */
-            has_website?: "any" | "yes" | "no";
+            target_leads?: number;
             /**
-             * Open In Window
-             * @default false
+             * Max Queries
+             * @description Cost cap: provider queries at most
+             * @default 30
              */
-            open_in_window?: boolean;
-            /** Window Start */
-            window_start?: string | null;
-            /** Window End */
-            window_end?: string | null;
+            max_queries?: number;
             /**
-             * Lead Quality
-             * @default any
-             * @enum {string}
+             * Use Neighborhoods
+             * @description Search neighborhood by neighborhood once city-wide queries are used up
+             * @default true
              */
-            lead_quality?: "any" | "high" | "medium" | "low";
-            /**
-             * Max Results
-             * @default 60
-             */
-            max_results?: number;
+            use_neighborhoods?: boolean;
             /**
              * Audit Websites
              * @default true
@@ -2276,7 +2264,7 @@ export interface components {
         SearchSettings: {
             /**
              * Default Max Results
-             * @default 60
+             * @default 150
              */
             default_max_results: number;
             /**
@@ -2370,6 +2358,23 @@ export interface components {
             /** Deactivated At */
             deactivated_at: string | null;
         };
+        /** TargetMeta */
+        TargetMeta: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Label Bg */
+            label_bg: string;
+            /** Group */
+            group: string;
+            /** Group Label */
+            group_label: string;
+            /** Value Tier */
+            value_tier: number;
+            /** Booking */
+            booking: boolean;
+        };
         /** UsageOut */
         UsageOut: {
             /** Period Start */
@@ -2461,6 +2466,8 @@ export type SchemaCallingSessionOut = components['schemas']['CallingSessionOut']
 export type SchemaCallingSessionSummary = components['schemas']['CallingSessionSummary'];
 export type SchemaCallingSessionUpdate = components['schemas']['CallingSessionUpdate'];
 export type SchemaCallingSettings = components['schemas']['CallingSettings'];
+export type SchemaCategoryCount = components['schemas']['CategoryCount'];
+export type SchemaCategoryMeta = components['schemas']['CategoryMeta'];
 export type SchemaContactOut = components['schemas']['ContactOut'];
 export type SchemaCostEstimate = components['schemas']['CostEstimate'];
 export type SchemaCostLine = components['schemas']['CostLine'];
@@ -2473,6 +2480,7 @@ export type SchemaEventOut = components['schemas']['EventOut'];
 export type SchemaFacetValue = components['schemas']['FacetValue'];
 export type SchemaFacetsOut = components['schemas']['FacetsOut'];
 export type SchemaGeneralSettings = components['schemas']['GeneralSettings'];
+export type SchemaGoalProgress = components['schemas']['GoalProgress'];
 export type SchemaHttpValidationError = components['schemas']['HTTPValidationError'];
 export type SchemaImportCommit = components['schemas']['ImportCommit'];
 export type SchemaImportPreview = components['schemas']['ImportPreview'];
@@ -2482,6 +2490,7 @@ export type SchemaJobOut = components['schemas']['JobOut'];
 export type SchemaJobRef = components['schemas']['JobRef'];
 export type SchemaJobStatus = components['schemas']['JobStatus'];
 export type SchemaKeyCount = components['schemas']['KeyCount'];
+export type SchemaLeadCategory = components['schemas']['LeadCategory'];
 export type SchemaLeadDetail = components['schemas']['LeadDetail'];
 export type SchemaLeadStatus = components['schemas']['LeadStatus'];
 export type SchemaLeadSummary = components['schemas']['LeadSummary'];
@@ -2492,20 +2501,21 @@ export type SchemaMetaOut = components['schemas']['MetaOut'];
 export type SchemaMonthSummary = components['schemas']['MonthSummary'];
 export type SchemaNoteCreate = components['schemas']['NoteCreate'];
 export type SchemaNoteOut = components['schemas']['NoteOut'];
+export type SchemaOfferConfig = components['schemas']['OfferConfig'];
+export type SchemaOfferSettings = components['schemas']['OfferSettings'];
 export type SchemaOkResponse = components['schemas']['OkResponse'];
 export type SchemaOpportunityCount = components['schemas']['OpportunityCount'];
 export type SchemaOpportunityType = components['schemas']['OpportunityType'];
 export type SchemaPageJobOut = components['schemas']['Page_JobOut_'];
 export type SchemaPageLeadSummary = components['schemas']['Page_LeadSummary_'];
 export type SchemaPitchOut = components['schemas']['PitchOut'];
-export type SchemaPresetCreate = components['schemas']['PresetCreate'];
-export type SchemaPresetOut = components['schemas']['PresetOut'];
-export type SchemaPresetUpdate = components['schemas']['PresetUpdate'];
 export type SchemaPricingSettings = components['schemas']['PricingSettings'];
 export type SchemaPriority = components['schemas']['Priority'];
 export type SchemaProviderInfo = components['schemas']['ProviderInfo'];
 export type SchemaProviderStatusOut = components['schemas']['ProviderStatusOut'];
 export type SchemaRecentJob = components['schemas']['RecentJob'];
+export type SchemaResetRequest = components['schemas']['ResetRequest'];
+export type SchemaResetResult = components['schemas']['ResetResult'];
 export type SchemaRuleKey = components['schemas']['RuleKey'];
 export type SchemaRuntimeSettings = components['schemas']['RuntimeSettings'];
 export type SchemaScoreReason = components['schemas']['ScoreReason'];
@@ -2521,6 +2531,7 @@ export type SchemaSkuPrice = components['schemas']['SkuPrice'];
 export type SchemaSourceOut = components['schemas']['SourceOut'];
 export type SchemaSuppressionCreate = components['schemas']['SuppressionCreate'];
 export type SchemaSuppressionOut = components['schemas']['SuppressionOut'];
+export type SchemaTargetMeta = components['schemas']['TargetMeta'];
 export type SchemaUsageOut = components['schemas']['UsageOut'];
 export type SchemaUserOut = components['schemas']['UserOut'];
 export type SchemaUserRef = components['schemas']['UserRef'];
@@ -2915,7 +2926,8 @@ export interface operations {
                 status?: components["schemas"]["LeadStatus"][];
                 opportunity?: components["schemas"]["OpportunityType"][];
                 category?: string | null;
-                niche_key?: string | null;
+                lead_category?: components["schemas"]["LeadCategory"][];
+                target_key?: string | null;
                 city?: string | null;
                 has_phone?: boolean | null;
                 has_website?: boolean | null;
@@ -2933,7 +2945,7 @@ export interface operations {
                 job_matched_only?: boolean;
                 include_suppressed?: boolean;
                 include_demo?: boolean;
-                sort?: "priority" | "opportunity_score" | "website_score" | "review_count" | "rating" | "name" | "created_at" | "last_contacted_at" | "next_callback_at";
+                sort?: "expected_value" | "priority" | "opportunity_score" | "website_score" | "review_count" | "rating" | "name" | "created_at" | "last_contacted_at" | "next_callback_at";
                 order?: "asc" | "desc";
                 page?: number;
                 page_size?: number;
@@ -3501,7 +3513,8 @@ export interface operations {
                 status?: components["schemas"]["LeadStatus"][];
                 opportunity?: components["schemas"]["OpportunityType"][];
                 category?: string | null;
-                niche_key?: string | null;
+                lead_category?: components["schemas"]["LeadCategory"][];
+                target_key?: string | null;
                 city?: string | null;
                 has_phone?: boolean | null;
                 has_website?: boolean | null;
@@ -3519,7 +3532,7 @@ export interface operations {
                 job_matched_only?: boolean;
                 include_suppressed?: boolean;
                 include_demo?: boolean;
-                sort?: "priority" | "opportunity_score" | "website_score" | "review_count" | "rating" | "name" | "created_at" | "last_contacted_at" | "next_callback_at";
+                sort?: "expected_value" | "priority" | "opportunity_score" | "website_score" | "review_count" | "rating" | "name" | "created_at" | "last_contacted_at" | "next_callback_at";
                 order?: "asc" | "desc";
             };
             header?: never;
@@ -3742,27 +3755,7 @@ export interface operations {
             };
         };
     };
-    list_presets_api_presets_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PresetOut"][];
-                };
-            };
-        };
-    };
-    create_preset_api_presets_post: {
+    reset_leads_api_admin_reset_leads_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -3771,73 +3764,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PresetCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PresetOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_preset_api_presets__preset_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                preset_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_preset_api_presets__preset_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                preset_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PresetUpdate"];
+                "application/json": components["schemas"]["ResetRequest"];
             };
         };
         responses: {
@@ -3847,7 +3774,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PresetOut"];
+                    "application/json": components["schemas"]["ResetResult"];
                 };
             };
             /** @description Validation Error */

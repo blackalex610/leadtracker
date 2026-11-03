@@ -46,8 +46,6 @@
   "point_of_interest",
   "establishment"
  ],
- "niche_key": "gyms",
- "niche_label": "Gyms",
  "subcategory": null,
  "description": null,
  "postal_code": null,
@@ -629,7 +627,10 @@
     "6 conversion elements not found: online booking, services section, contact call-to-action, contact form, opening hours, address/location",
     "Outdated index 100/100 (severe problems)",
     "Google profile: Only 2 photo(s) on the listing"
-   ]
+   ],
+   "offer": "Website redesign",
+   "price": 290,
+   "ask": "Can I send you a free 2-minute video of what's costing you customers on the current site?"
   },
   "bg": {
    "language": "bg",
@@ -643,7 +644,10 @@
     "6 conversion elements not found: online booking, services section, contact call-to-action, contact form, opening hours, address/location",
     "Outdated index 100/100 (severe problems)",
     "Google profile: Only 2 photo(s) on the listing"
-   ]
+   ],
+   "offer": "Нов сайт",
+   "price": 290,
+   "ask": "Да ви пратя ли безплатно кратко видео какво ви губи клиенти на сегашния сайт?"
   }
  },
  "calls": [],
@@ -688,5 +692,23 @@
  },
  "last_contacted_by": null,
  "open_today_in_window": true,
- "active_job_id": null
+ "active_job_id": null,
+ "target_key": "gyms",
+ "target_label": "Gyms & fitness studios",
+ "lead_category": "WEAK_SITE",
+ "deal_value": 290,
+ "close_odds": 24,
+ "expected_value": 70,
+ "category_reason": "Website Health 18/100 (below 40)",
+ "category_details": {
+  "upsells": [
+   "Google profile boost",
+   "Online booking",
+   "Care plan €15/month (hosting, updates, small changes)"
+  ],
+  "fit_notes": [
+   "390 reviews - busy, established business",
+   "Mobile number - the owner usually answers"
+  ]
+ }
 }

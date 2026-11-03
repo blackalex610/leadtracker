@@ -57,18 +57,20 @@ def analyze_google_profile(inp: ScoringInput, cfg: ScoringConfig) -> GoogleProfi
         signals.append(_sig("few_photos", f"Only {inp.photo_count} photo(s) on the listing", Severity.MINOR))
     if inp.description_requested and not inp.description:
         signals.append(_sig("missing_description", "No business description", Severity.MINOR))
-    niche = inp.niche
+    target = inp.target
+    # Only meaningful when the search was restricted to a Google type.
     if (
-        niche
-        and niche.match_types
+        target
+        and target.included_type
+        and target.match_types
         and inp.primary_type
-        and inp.primary_type not in niche.match_types
-        and not set(inp.types) & set(niche.match_types)
+        and inp.primary_type not in target.match_types
+        and not set(inp.types) & set(target.match_types)
     ):
         signals.append(
             _sig(
                 "category_mismatch",
-                f"Primary Google category '{inp.category or inp.primary_type}' may not match '{niche.label}'",
+                f"Primary Google category '{inp.category or inp.primary_type}' may not match '{target.label}'",
                 Severity.MINOR,
             )
         )

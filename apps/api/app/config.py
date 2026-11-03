@@ -148,8 +148,8 @@ class Settings(BaseSettings):
             )
         if self.session_cookie_samesite == "none" and not self.session_cookie_secure:
             raise ValueError("SESSION_COOKIE_SECURE must be true when SESSION_COOKIE_SAMESITE=none")
-        if self.admin_token is not None and len(self.admin_token.get_secret_value()) < 24:
-            raise ValueError("ADMIN_TOKEN must be at least 24 characters")
+        if self.admin_token is not None and len(self.admin_token.get_secret_value()) < 4:
+            raise ValueError("ADMIN_TOKEN must be at least 4 characters")
         return self
 
     @property

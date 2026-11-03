@@ -204,7 +204,7 @@ async def upsert_business(
     record: BusinessRecord,
     *,
     default_region: str = "BG",
-    niche_key: str | None = None,
+    target_key: str | None = None,
     user_id: int | None = None,
     fill_only: bool = False,
 ) -> UpsertOutcome:
@@ -236,8 +236,8 @@ async def upsert_business(
             _fill_empty(business, record)
             if not business.website_url and record.website_url:
                 website_changed = set_website(business, record.website_url)
-        if not business.niche_key and niche_key:
-            business.niche_key = niche_key
+        if not business.target_key and target_key:
+            business.target_key = target_key
         await _ensure_contacts(
             session, business, phones, record.phone_source, make_primary=same_source and not fill_only
         )
@@ -256,7 +256,7 @@ async def upsert_business(
         provider=record.provider,
         provider_place_id=record.external_id,
         source_timestamp=record.fetched_at or now,
-        niche_key=niche_key,
+        target_key=target_key,
         created_by_id=user_id,
         is_demo=record.is_demo,
         types=[],
@@ -283,7 +283,7 @@ async def upsert_business(
             session,
             record,
             default_region=default_region,
-            niche_key=niche_key,
+            target_key=target_key,
             user_id=user_id,
             fill_only=fill_only,
         )

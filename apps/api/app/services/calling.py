@@ -14,14 +14,13 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import ColumnElement, and_, exists, func, not_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enums import LeadStatus, OpportunityType, Priority
+from app.core.enums import LeadCategory, LeadStatus, OpportunityType, Priority
 from app.core.opening_hours import is_open_during, python_weekday_to_places
 from app.models import Business, CallAttempt, CallingSession, SuppressionEntry
 from app.schemas.leads import PitchOut, ScoreReason
 from app.schemas.misc import CallingCard, CallingFilters
 from app.services.calls import last_calls
 from app.services.leads import to_summary
-from app.services.presets import load_niches
 from app.services.scoring_service import load_last_audit, pitch_for
 from app.services.settings import RuntimeSettings
 
@@ -61,8 +60,14 @@ def _base_query(filters: CallingFilters, runtime: RuntimeSettings, user_id: int 
     stmt = stmt.where(or_(Business.next_callback_at.is_(None), Business.next_callback_at <= now))
     if filters.priorities:
         stmt = stmt.where(or_(Business.priority.in_([p.value for p in filters.priorities]), callback_due))
-    if filters.niche_key:
-        stmt = stmt.where(Business.niche_key == filters.niche_key)
+    if filters.categories:
+        stmt = stmt.where(Business.lead_category.in_([c.value for c in filters.categories]))
+    else:
+        stmt = stmt.where(
+            or_(Business.lead_category.is_(None), Business.lead_category != LeadCategory.NOT_A_FIT.value)
+        )
+    if filters.target_key:
+        stmt = stmt.where(Business.target_key == filters.target_key)
     if filters.category:
         stmt = stmt.where(Business.category == filters.category)
     if filters.city:
@@ -79,8 +84,10 @@ def _base_query(filters: CallingFilters, runtime: RuntimeSettings, user_id: int 
         stmt = stmt.where(Business.opportunity_score >= filters.min_score)
     if filters.assigned_to_me and user_id is not None:
         stmt = stmt.where(Business.assigned_to_id == user_id)
+    # Callbacks first, then the most money per call: price x odds.
     return stmt.order_by(
         callback_due.desc(),
+        Business.expected_value.desc(),
         Business.priority_rank.asc(),
         Business.opportunity_score.desc(),
         Business.id.asc(),
@@ -202,7 +209,6 @@ async def build_cards(
             )
         ).scalars()
     )
-    niches = await load_niches(session)
     latest = await last_calls(session, lead_ids)
     window = (
         (filters.window_start, filters.window_end)
@@ -232,7 +238,6 @@ async def build_cards(
         pitch, _ = pitch_for(
             business,
             audit if business.website_status != "unaudited" else None,
-            niches,
             runtime,
             runtime.general.pitch_language,
         )
@@ -270,4 +275,4 @@ async def create_session(
     return calling
 
 
-PRIORITY_DEFAULT = [Priority.HOT, Priority.WARM]
+PRIORITY_DEFAULT: list[Priority] = []

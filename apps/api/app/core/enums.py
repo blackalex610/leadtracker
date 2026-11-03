@@ -85,6 +85,21 @@ WEBSITE_PROBLEM_OPPORTUNITIES = frozenset(
 )
 
 
+class LeadCategory(StrEnum):
+    """What to sell a lead (see app.scoring.category)."""
+
+    BROKEN_SITE = "BROKEN_SITE"
+    NO_SITE = "NO_SITE"
+    SOCIAL_ONLY = "SOCIAL_ONLY"
+    NEW_BUSINESS = "NEW_BUSINESS"
+    PLATFORM_ONLY = "PLATFORM_ONLY"
+    WEAK_SITE = "WEAK_SITE"
+    NO_BOOKING = "NO_BOOKING"
+    WEAK_GOOGLE = "WEAK_GOOGLE"
+    UNCHECKED = "UNCHECKED"
+    NOT_A_FIT = "NOT_A_FIT"
+
+
 class DataQuality(StrEnum):
     EXCELLENT = "EXCELLENT"
     GOOD = "GOOD"

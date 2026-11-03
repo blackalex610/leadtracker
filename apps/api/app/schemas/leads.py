@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import Field
 
-from app.core.enums import CallOutcome, DataQuality, LeadStatus, OpportunityType, Priority
+from app.core.enums import CallOutcome, DataQuality, LeadCategory, LeadStatus, OpportunityType, Priority
 from app.schemas.common import ORMModel, Schema
 
 
@@ -39,6 +39,11 @@ class LeadSummary(ORMModel):
     priority: Priority
     opportunity_types: list[OpportunityType]
     top_reason: str | None = None
+    lead_category: LeadCategory | None
+    deal_value: int
+    close_odds: int
+    expected_value: int
+    target_key: str | None
     status: LeadStatus
     suppressed: bool
     is_demo: bool
@@ -134,6 +139,9 @@ class PitchOut(Schema):
     text: str
     primary_opportunity: str | None
     talking_points: list[str]
+    offer: str | None = None
+    price: int | None = None
+    ask: str | None = None
 
 
 class UserRef(ORMModel):
@@ -145,8 +153,9 @@ class UserRef(ORMModel):
 class LeadDetail(LeadSummary):
     primary_type: str | None
     types: list[str]
-    niche_key: str | None
-    niche_label: str | None = None
+    target_label: str | None = None
+    category_reason: str | None
+    category_details: dict[str, Any]
     subcategory: str | None
     description: str | None
     postal_code: str | None
@@ -190,7 +199,6 @@ class LeadUpdate(Schema):
     assigned_to_id: int | None = None
     unassign: bool = False
     next_callback_at: datetime | None = None
-    niche_key: str | None = None
     website_url: str | None = Field(default=None, max_length=1000)
     add_phone: str | None = Field(default=None, max_length=64)
     confirm_reenable: bool = False
@@ -237,6 +245,7 @@ class AuditRequest(Schema):
 
 
 SortField = Literal[
+    "expected_value",
     "priority",
     "opportunity_score",
     "website_score",

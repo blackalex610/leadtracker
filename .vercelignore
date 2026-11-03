@@ -8,3 +8,8 @@ apps/web/playwright-report
 apps/web/test-results
 **/__pycache__
 **/node_modules
+
+# Local agent tooling (not part of the app)
+.agents
+.claude
+skills-lock.json

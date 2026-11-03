@@ -19,7 +19,6 @@ export const keys = {
   callingSessions: ["calling-sessions"] as const,
   callingSession: (id: number) => ["calling-session", id] as const,
   settings: ["settings"] as const,
-  presets: ["presets"] as const,
   suppression: (all: boolean) => ["suppression", all] as const,
   usage: ["usage"] as const,
 };
@@ -29,7 +28,6 @@ export const useUsers = () => useQuery({ queryKey: keys.users, queryFn: api.user
 export const useDashboard = () =>
   useQuery({ queryKey: keys.dashboard, queryFn: api.dashboard, refetchInterval: 60_000 });
 export const useFacets = () => useQuery({ queryKey: keys.facets, queryFn: api.facets, staleTime: 60_000 });
-export const usePresets = () => useQuery({ queryKey: keys.presets, queryFn: api.presets });
 export const useSettings = () => useQuery({ queryKey: keys.settings, queryFn: api.settings });
 export const useUsage = () => useQuery({ queryKey: keys.usage, queryFn: api.usage });
 export const useSearchJobs = () =>

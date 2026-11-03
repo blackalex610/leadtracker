@@ -569,7 +569,19 @@
             }
           },
           {
-            "name": "niche_key",
+            "name": "lead_category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/LeadCategory"
+              },
+              "title": "Lead Category"
+            }
+          },
+          {
+            "name": "target_key",
             "in": "query",
             "required": false,
             "schema": {
@@ -581,7 +593,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Niche Key"
+              "title": "Target Key"
             }
           },
           {
@@ -850,6 +862,7 @@
             "required": false,
             "schema": {
               "enum": [
+                "expected_value",
                 "priority",
                 "opportunity_score",
                 "website_score",
@@ -861,7 +874,7 @@
                 "next_callback_at"
               ],
               "type": "string",
-              "default": "priority",
+              "default": "expected_value",
               "title": "Sort"
             }
           },
@@ -1715,7 +1728,19 @@
             }
           },
           {
-            "name": "niche_key",
+            "name": "lead_category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/LeadCategory"
+              },
+              "title": "Lead Category"
+            }
+          },
+          {
+            "name": "target_key",
             "in": "query",
             "required": false,
             "schema": {
@@ -1727,7 +1752,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Niche Key"
+              "title": "Target Key"
             }
           },
           {
@@ -1996,6 +2021,7 @@
             "required": false,
             "schema": {
               "enum": [
+                "expected_value",
                 "priority",
                 "opportunity_score",
                 "website_score",
@@ -2007,7 +2033,7 @@
                 "next_callback_at"
               ],
               "type": "string",
-              "default": "priority",
+              "default": "expected_value",
               "title": "Sort"
             }
           },
@@ -2273,145 +2299,31 @@
         }
       }
     },
-    "/api/presets": {
-      "get": {
-        "tags": [
-          "presets"
-        ],
-        "summary": "List Presets",
-        "operationId": "list_presets_api_presets_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/PresetOut"
-                  },
-                  "type": "array",
-                  "title": "Response List Presets Api Presets Get"
-                }
-              }
-            }
-          }
-        }
-      },
+    "/api/admin/reset-leads": {
       "post": {
         "tags": [
-          "presets"
+          "settings"
         ],
-        "summary": "Create Preset",
-        "operationId": "create_preset_api_presets_post",
+        "summary": "Reset Leads",
+        "description": "Delete every lead, call, note, audit and search job. Users, settings and the\ndo-not-contact list are kept.",
+        "operationId": "reset_leads_api_admin_reset_leads_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PresetCreate"
+                "$ref": "#/components/schemas/ResetRequest"
               }
             }
           },
           "required": true
         },
         "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PresetOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/presets/{preset_id}": {
-      "patch": {
-        "tags": [
-          "presets"
-        ],
-        "summary": "Update Preset",
-        "operationId": "update_preset_api_presets__preset_id__patch",
-        "parameters": [
-          {
-            "name": "preset_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Preset Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PresetUpdate"
-              }
-            }
-          }
-        },
-        "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PresetOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "presets"
-        ],
-        "summary": "Delete Preset",
-        "operationId": "delete_preset_api_presets__preset_id__delete",
-        "parameters": [
-          {
-            "name": "preset_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Preset Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OkResponse"
+                  "$ref": "#/components/schemas/ResetResult"
                 }
               }
             }
@@ -3290,16 +3202,24 @@
       },
       "CallingFilters": {
         "properties": {
-          "niche_key": {
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/LeadCategory"
+            },
+            "type": "array",
+            "title": "Categories"
+          },
+          "target_key": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 64
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Niche Key"
+            "title": "Target Key"
           },
           "category": {
             "anyOf": [
@@ -3623,6 +3543,81 @@
         ],
         "title": "CallingSettings"
       },
+      "CategoryCount": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "deal_value": {
+            "type": "integer",
+            "title": "Deal Value"
+          },
+          "expected_value": {
+            "type": "integer",
+            "title": "Expected Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "count",
+          "deal_value",
+          "expected_value"
+        ],
+        "title": "CategoryCount"
+      },
+      "CategoryMeta": {
+        "properties": {
+          "key": {
+            "$ref": "#/components/schemas/LeadCategory"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "label_bg": {
+            "type": "string",
+            "title": "Label Bg"
+          },
+          "offer": {
+            "type": "string",
+            "title": "Offer"
+          },
+          "offer_bg": {
+            "type": "string",
+            "title": "Offer Bg"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "sellable": {
+            "type": "boolean",
+            "title": "Sellable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "label_bg",
+          "offer",
+          "offer_bg",
+          "description",
+          "sellable"
+        ],
+        "title": "CategoryMeta"
+      },
       "ContactOut": {
         "properties": {
           "id": {
@@ -3934,6 +3929,16 @@
           "kpis": {
             "$ref": "#/components/schemas/DashboardKpis"
           },
+          "goal": {
+            "$ref": "#/components/schemas/GoalProgress"
+          },
+          "by_category": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryCount"
+            },
+            "type": "array",
+            "title": "By Category"
+          },
           "by_opportunity": {
             "items": {
               "$ref": "#/components/schemas/OpportunityCount"
@@ -3990,6 +3995,8 @@
         "type": "object",
         "required": [
           "kpis",
+          "goal",
+          "by_category",
           "by_opportunity",
           "calls_by_outcome",
           "pipeline",
@@ -4134,19 +4141,27 @@
             "type": "array",
             "title": "Cities"
           },
-          "niches": {
+          "targets": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/FacetValue"
             },
             "type": "array",
-            "title": "Niches"
+            "title": "Targets"
+          },
+          "lead_categories": {
+            "items": {
+              "$ref": "#/components/schemas/FacetValue"
+            },
+            "type": "array",
+            "title": "Lead Categories"
           }
         },
         "type": "object",
         "required": [
           "categories",
           "cities",
-          "niches"
+          "targets",
+          "lead_categories"
         ],
         "title": "FacetsOut"
       },
@@ -4179,7 +4194,7 @@
               "bg"
             ],
             "title": "Pitch Language",
-            "default": "en"
+            "default": "bg"
           }
         },
         "type": "object",
@@ -4191,6 +4206,59 @@
           "pitch_language"
         ],
         "title": "GeneralSettings"
+      },
+      "GoalProgress": {
+        "properties": {
+          "weekly_goal": {
+            "type": "integer",
+            "title": "Weekly Goal"
+          },
+          "calls_per_day": {
+            "type": "integer",
+            "title": "Calls Per Day"
+          },
+          "won_value_7d": {
+            "type": "integer",
+            "title": "Won Value 7D"
+          },
+          "won_count_7d": {
+            "type": "integer",
+            "title": "Won Count 7D"
+          },
+          "in_play_value": {
+            "type": "integer",
+            "title": "In Play Value"
+          },
+          "in_play_count": {
+            "type": "integer",
+            "title": "In Play Count"
+          },
+          "calls_7d": {
+            "type": "integer",
+            "title": "Calls 7D"
+          },
+          "ready_leads": {
+            "type": "integer",
+            "title": "Ready Leads"
+          },
+          "ready_expected_value": {
+            "type": "integer",
+            "title": "Ready Expected Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "weekly_goal",
+          "calls_per_day",
+          "won_value_7d",
+          "won_count_7d",
+          "in_play_value",
+          "in_play_count",
+          "calls_7d",
+          "ready_leads",
+          "ready_expected_value"
+        ],
+        "title": "GoalProgress"
       },
       "HTTPValidationError": {
         "properties": {
@@ -4655,6 +4723,23 @@
         ],
         "title": "KeyCount"
       },
+      "LeadCategory": {
+        "type": "string",
+        "enum": [
+          "BROKEN_SITE",
+          "NO_SITE",
+          "SOCIAL_ONLY",
+          "NEW_BUSINESS",
+          "PLATFORM_ONLY",
+          "WEAK_SITE",
+          "NO_BOOKING",
+          "WEAK_GOOGLE",
+          "UNCHECKED",
+          "NOT_A_FIT"
+        ],
+        "title": "LeadCategory",
+        "description": "What to sell a lead (see app.scoring.category)."
+      },
       "LeadDetail": {
         "properties": {
           "id": {
@@ -4841,6 +4926,39 @@
             ],
             "title": "Top Reason"
           },
+          "lead_category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LeadCategory"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deal_value": {
+            "type": "integer",
+            "title": "Deal Value"
+          },
+          "close_odds": {
+            "type": "integer",
+            "title": "Close Odds"
+          },
+          "expected_value": {
+            "type": "integer",
+            "title": "Expected Value"
+          },
+          "target_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Key"
+          },
           "status": {
             "$ref": "#/components/schemas/LeadStatus"
           },
@@ -4950,7 +5068,7 @@
             "type": "array",
             "title": "Types"
           },
-          "niche_key": {
+          "target_label": {
             "anyOf": [
               {
                 "type": "string"
@@ -4959,9 +5077,9 @@
                 "type": "null"
               }
             ],
-            "title": "Niche Key"
+            "title": "Target Label"
           },
-          "niche_label": {
+          "category_reason": {
             "anyOf": [
               {
                 "type": "string"
@@ -4970,7 +5088,12 @@
                 "type": "null"
               }
             ],
-            "title": "Niche Label"
+            "title": "Category Reason"
+          },
+          "category_details": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Category Details"
           },
           "subcategory": {
             "anyOf": [
@@ -5328,6 +5451,11 @@
           "priority",
           "opportunity_types",
           "top_reason",
+          "lead_category",
+          "deal_value",
+          "close_odds",
+          "expected_value",
+          "target_key",
           "status",
           "suppressed",
           "is_demo",
@@ -5342,8 +5470,9 @@
           "created_at",
           "primary_type",
           "types",
-          "niche_key",
-          "niche_label",
+          "target_label",
+          "category_reason",
+          "category_details",
           "subcategory",
           "description",
           "postal_code",
@@ -5585,6 +5714,39 @@
             ],
             "title": "Top Reason"
           },
+          "lead_category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LeadCategory"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deal_value": {
+            "type": "integer",
+            "title": "Deal Value"
+          },
+          "close_odds": {
+            "type": "integer",
+            "title": "Close Odds"
+          },
+          "expected_value": {
+            "type": "integer",
+            "title": "Expected Value"
+          },
+          "target_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Key"
+          },
           "status": {
             "$ref": "#/components/schemas/LeadStatus"
           },
@@ -5700,6 +5862,11 @@
           "priority",
           "opportunity_types",
           "top_reason",
+          "lead_category",
+          "deal_value",
+          "close_odds",
+          "expected_value",
+          "target_key",
           "status",
           "suppressed",
           "is_demo",
@@ -5755,17 +5922,6 @@
             ],
             "title": "Next Callback At"
           },
-          "niche_key": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Niche Key"
-          },
           "website_url": {
             "anyOf": [
               {
@@ -5804,7 +5960,7 @@
           "token": {
             "type": "string",
             "maxLength": 200,
-            "minLength": 10,
+            "minLength": 1,
             "title": "Token"
           }
         },
@@ -5866,12 +6022,19 @@
             "type": "object",
             "title": "Cities"
           },
-          "category_suggestions": {
+          "targets": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/TargetMeta"
             },
             "type": "array",
-            "title": "Category Suggestions"
+            "title": "Targets"
+          },
+          "lead_categories": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryMeta"
+            },
+            "type": "array",
+            "title": "Lead Categories"
           },
           "lead_statuses": {
             "items": {
@@ -5920,7 +6083,8 @@
           "provider",
           "pagespeed_configured",
           "cities",
-          "category_suggestions",
+          "targets",
+          "lead_categories",
           "lead_statuses",
           "call_outcomes",
           "opportunity_labels",
@@ -6038,6 +6202,73 @@
           "created_at"
         ],
         "title": "NoteOut"
+      },
+      "OfferConfig": {
+        "properties": {
+          "offers": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/OfferSettings"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/LeadCategory"
+            },
+            "type": "object",
+            "title": "Offers"
+          },
+          "weekly_goal": {
+            "type": "integer",
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "Weekly Goal",
+            "description": "Revenue goal per 7 days (EUR)",
+            "default": 500
+          },
+          "calls_per_day": {
+            "type": "integer",
+            "maximum": 2000.0,
+            "minimum": 1.0,
+            "title": "Calls Per Day",
+            "default": 150
+          }
+        },
+        "type": "object",
+        "required": [
+          "offers",
+          "weekly_goal",
+          "calls_per_day"
+        ],
+        "title": "OfferConfig",
+        "description": "Editable prices/odds per category (Settings → Offers)."
+      },
+      "OfferSettings": {
+        "properties": {
+          "price": {
+            "type": "integer",
+            "maximum": 100000.0,
+            "minimum": 0.0,
+            "title": "Price"
+          },
+          "premium_price": {
+            "type": "integer",
+            "maximum": 100000.0,
+            "minimum": 0.0,
+            "title": "Premium Price"
+          },
+          "odds": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Odds",
+            "description": "Relative close odds in %, used to rank the calling queue"
+          }
+        },
+        "type": "object",
+        "required": [
+          "price",
+          "premium_price",
+          "odds"
+        ],
+        "title": "OfferSettings"
       },
       "OkResponse": {
         "properties": {
@@ -6183,76 +6414,8 @@
             },
             "type": "array",
             "title": "Talking Points"
-          }
-        },
-        "type": "object",
-        "required": [
-          "language",
-          "text",
-          "primary_opportunity",
-          "talking_points"
-        ],
-        "title": "PitchOut"
-      },
-      "PresetCreate": {
-        "properties": {
-          "label": {
-            "type": "string",
-            "maxLength": 120,
-            "minLength": 1,
-            "title": "Label"
           },
-          "label_bg": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 120
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label Bg"
-          },
-          "category_query": {
-            "type": "string",
-            "maxLength": 200,
-            "minLength": 2,
-            "title": "Category Query"
-          },
-          "included_type": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 100
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Included Type"
-          },
-          "keywords": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 300
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Keywords"
-          },
-          "match_types": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "maxItems": 30,
-            "title": "Match Types"
-          },
-          "calling_window_start": {
+          "offer": {
             "anyOf": [
               {
                 "type": "string"
@@ -6261,332 +6424,9 @@
                 "type": "null"
               }
             ],
-            "title": "Calling Window Start"
+            "title": "Offer"
           },
-          "calling_window_end": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Calling Window End"
-          },
-          "booking_oriented": {
-            "type": "boolean",
-            "title": "Booking Oriented",
-            "default": false
-          },
-          "discovery_dependent": {
-            "type": "boolean",
-            "title": "Discovery Dependent",
-            "default": true
-          },
-          "strong_opportunities": {
-            "items": {
-              "$ref": "#/components/schemas/OpportunityType"
-            },
-            "type": "array",
-            "title": "Strong Opportunities"
-          },
-          "sort_order": {
-            "type": "integer",
-            "title": "Sort Order",
-            "default": 100
-          },
-          "key": {
-            "type": "string",
-            "maxLength": 64,
-            "minLength": 2,
-            "pattern": "^[a-z0-9_]+$",
-            "title": "Key"
-          }
-        },
-        "type": "object",
-        "required": [
-          "label",
-          "category_query",
-          "key"
-        ],
-        "title": "PresetCreate"
-      },
-      "PresetOut": {
-        "properties": {
-          "label": {
-            "type": "string",
-            "maxLength": 120,
-            "minLength": 1,
-            "title": "Label"
-          },
-          "label_bg": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 120
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label Bg"
-          },
-          "category_query": {
-            "type": "string",
-            "maxLength": 200,
-            "minLength": 2,
-            "title": "Category Query"
-          },
-          "included_type": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 100
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Included Type"
-          },
-          "keywords": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 300
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Keywords"
-          },
-          "match_types": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "maxItems": 30,
-            "title": "Match Types"
-          },
-          "calling_window_start": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Calling Window Start"
-          },
-          "calling_window_end": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Calling Window End"
-          },
-          "booking_oriented": {
-            "type": "boolean",
-            "title": "Booking Oriented",
-            "default": false
-          },
-          "discovery_dependent": {
-            "type": "boolean",
-            "title": "Discovery Dependent",
-            "default": true
-          },
-          "strong_opportunities": {
-            "items": {
-              "$ref": "#/components/schemas/OpportunityType"
-            },
-            "type": "array",
-            "title": "Strong Opportunities"
-          },
-          "sort_order": {
-            "type": "integer",
-            "title": "Sort Order",
-            "default": 100
-          },
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "key": {
-            "type": "string",
-            "title": "Key"
-          },
-          "is_builtin": {
-            "type": "boolean",
-            "title": "Is Builtin"
-          },
-          "lead_count": {
-            "type": "integer",
-            "title": "Lead Count",
-            "default": 0
-          }
-        },
-        "type": "object",
-        "required": [
-          "label",
-          "label_bg",
-          "category_query",
-          "included_type",
-          "keywords",
-          "match_types",
-          "calling_window_start",
-          "calling_window_end",
-          "booking_oriented",
-          "discovery_dependent",
-          "strong_opportunities",
-          "sort_order",
-          "id",
-          "key",
-          "is_builtin",
-          "lead_count"
-        ],
-        "title": "PresetOut"
-      },
-      "PresetUpdate": {
-        "properties": {
-          "label": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 120,
-                "minLength": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label"
-          },
-          "label_bg": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label Bg"
-          },
-          "category_query": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 200,
-                "minLength": 2
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Category Query"
-          },
-          "included_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Included Type"
-          },
-          "keywords": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Keywords"
-          },
-          "match_types": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Match Types"
-          },
-          "calling_window_start": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Calling Window Start"
-          },
-          "calling_window_end": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Calling Window End"
-          },
-          "booking_oriented": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Booking Oriented"
-          },
-          "discovery_dependent": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Discovery Dependent"
-          },
-          "strong_opportunities": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/OpportunityType"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Strong Opportunities"
-          },
-          "sort_order": {
+          "price": {
             "anyOf": [
               {
                 "type": "integer"
@@ -6595,11 +6435,31 @@
                 "type": "null"
               }
             ],
-            "title": "Sort Order"
+            "title": "Price"
+          },
+          "ask": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ask"
           }
         },
         "type": "object",
-        "title": "PresetUpdate"
+        "required": [
+          "language",
+          "text",
+          "primary_opportunity",
+          "talking_points",
+          "offer",
+          "price",
+          "ask"
+        ],
+        "title": "PitchOut"
       },
       "PricingSettings": {
         "properties": {
@@ -6762,6 +6622,36 @@
         ],
         "title": "RecentJob"
       },
+      "ResetRequest": {
+        "properties": {
+          "confirm": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Confirm"
+          }
+        },
+        "type": "object",
+        "required": [
+          "confirm"
+        ],
+        "title": "ResetRequest"
+      },
+      "ResetResult": {
+        "properties": {
+          "deleted": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Deleted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deleted"
+        ],
+        "title": "ResetResult"
+      },
       "RuleKey": {
         "type": "string",
         "enum": [
@@ -6805,6 +6695,9 @@
           },
           "scoring": {
             "$ref": "#/components/schemas/ScoringConfig"
+          },
+          "offers": {
+            "$ref": "#/components/schemas/OfferConfig"
           }
         },
         "type": "object",
@@ -6815,7 +6708,8 @@
           "search",
           "csv",
           "pricing",
-          "scoring"
+          "scoring",
+          "offers"
         ],
         "title": "RuntimeSettings"
       },
@@ -7328,142 +7222,34 @@
       },
       "SearchRequest": {
         "properties": {
-          "category": {
-            "type": "string",
-            "maxLength": 120,
-            "minLength": 2,
-            "title": "Category"
-          },
           "location": {
             "type": "string",
             "maxLength": 120,
             "minLength": 2,
-            "title": "Location"
+            "title": "Location",
+            "default": "Sofia"
           },
-          "neighborhoods": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "maxItems": 60,
-            "title": "Neighborhoods"
-          },
-          "keywords": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 120
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Keywords"
-          },
-          "preset_key": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 64
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Preset Key"
-          },
-          "min_rating": {
-            "anyOf": [
-              {
-                "type": "number",
-                "maximum": 5.0,
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Min Rating",
-            "default": 4.0
-          },
-          "min_reviews": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Min Reviews"
-          },
-          "max_reviews": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Max Reviews"
-          },
-          "has_website": {
-            "type": "string",
-            "enum": [
-              "any",
-              "yes",
-              "no"
-            ],
-            "title": "Has Website",
-            "default": "any"
-          },
-          "open_in_window": {
-            "type": "boolean",
-            "title": "Open In Window",
-            "default": false
-          },
-          "window_start": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Window Start"
-          },
-          "window_end": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Window End"
-          },
-          "lead_quality": {
-            "type": "string",
-            "enum": [
-              "any",
-              "high",
-              "medium",
-              "low"
-            ],
-            "title": "Lead Quality",
-            "default": "any"
-          },
-          "max_results": {
+          "target_leads": {
             "type": "integer",
             "maximum": 2000.0,
             "minimum": 1.0,
-            "title": "Max Results",
-            "default": 60
+            "title": "Target Leads",
+            "description": "Fresh ICP leads to find",
+            "default": 150
+          },
+          "max_queries": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Max Queries",
+            "description": "Cost cap: provider queries at most",
+            "default": 30
+          },
+          "use_neighborhoods": {
+            "type": "boolean",
+            "title": "Use Neighborhoods",
+            "description": "Search neighborhood by neighborhood once city-wide queries are used up",
+            "default": true
           },
           "audit_websites": {
             "type": "boolean",
@@ -7497,12 +7283,8 @@
           }
         },
         "type": "object",
-        "required": [
-          "category",
-          "location"
-        ],
         "title": "SearchRequest",
-        "description": "Parameters of a search job (also the POST /api/search body)."
+        "description": "Parameters of a find-leads job (also the POST /api/search body)."
       },
       "SearchSettings": {
         "properties": {
@@ -7511,7 +7293,7 @@
             "maximum": 1000.0,
             "minimum": 1.0,
             "title": "Default Max Results",
-            "default": 60
+            "default": 150
           },
           "max_results_limit": {
             "type": "integer",
@@ -7762,6 +7544,49 @@
           "deactivated_at"
         ],
         "title": "SuppressionOut"
+      },
+      "TargetMeta": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "label_bg": {
+            "type": "string",
+            "title": "Label Bg"
+          },
+          "group": {
+            "type": "string",
+            "title": "Group"
+          },
+          "group_label": {
+            "type": "string",
+            "title": "Group Label"
+          },
+          "value_tier": {
+            "type": "integer",
+            "title": "Value Tier"
+          },
+          "booking": {
+            "type": "boolean",
+            "title": "Booking"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "label_bg",
+          "group",
+          "group_label",
+          "value_tier",
+          "booking"
+        ],
+        "title": "TargetMeta"
       },
       "UsageOut": {
         "properties": {

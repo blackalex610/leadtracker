@@ -3,29 +3,32 @@ import { expect, test } from "@playwright/test";
 // Serial: later steps use the leads created by the search.
 test.describe.configure({ mode: "serial" });
 
-test("search → results (demo provider)", async ({ page }) => {
+test("find leads → categorized results (demo provider)", async ({ page }) => {
   await page.goto("/search");
   await expect(page.getByText(/Demo mode/).first()).toBeVisible();
-  await page.getByLabel("Location").fill("Varna");
-  await page.getByRole("button", { name: "Search", exact: true }).click();
+  await page.getByLabel("City", { exact: true }).fill("Varna");
+  await page.getByLabel("Leads", { exact: true }).fill("20");
+  await page.getByRole("button", { name: "Find 20 leads" }).click();
   await expect(page).toHaveURL(/job=\d+/);
   await expect(page.getByText("Completed", { exact: true }).first()).toBeVisible({ timeout: 60_000 });
   const cards = page.locator('[role="link"][aria-label^="Demo"]');
   await expect(cards.first()).toBeVisible();
   expect(await cards.count()).toBeGreaterThan(5);
+  await expect(cards.first()).toContainText("€");
 
-  // Re-running the same search must not create duplicates.
+  // Clicking again searches new ground: more leads, never the same queries twice.
   await page.goto("/leads?city=Varna");
   const header = page.getByRole("heading", { level: 1 });
   await expect(header).toHaveText(/Leads \d+/);
-  const before = await header.innerText();
+  const before = Number((await header.innerText()).replace(/\D/g, ""));
   await page.goto("/search");
-  await page.getByLabel("Location").fill("Varna");
-  await page.getByRole("button", { name: "Search", exact: true }).click();
+  await page.getByLabel("City", { exact: true }).fill("Varna");
+  await page.getByLabel("Leads", { exact: true }).fill("20");
+  await page.getByRole("button", { name: "Find 20 leads" }).click();
   await expect(page.getByText("Completed", { exact: true }).first()).toBeVisible({ timeout: 60_000 });
   await page.goto("/leads?city=Varna");
   await expect(header).toHaveText(/Leads \d+/);
-  await expect(header).toHaveText(before);
+  expect(Number((await header.innerText()).replace(/\D/g, ""))).toBeGreaterThan(before);
 });
 
 test("lead filtering, detail and call outcome", async ({ page }) => {
